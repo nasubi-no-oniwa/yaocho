@@ -13,7 +13,8 @@ const TS = +(new URLSearchParams(location.search).get('ts') || 1);
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
 
 // ピッチ（7人制）：長さ60m（z）、幅40m（x）
-const HL = 30, HW = 20, GWH = 2.5, GH = 2.0, BR = 0.11;
+const REF_R = 0.8;
+const HL = 30, HW = 20, GWH = 3.0, GH = 2.2, BR = 0.11;
 const BOX_D = 9, BOX_W = 10, SPOT = 8;
 const HALF_LEN = 360; // 6分
 
@@ -413,7 +414,7 @@ function updateBall(dt) {
     ball.vel.set(0, 0, 0);
   } else if (ball.owner) {
     const o = ball.owner;
-    if (!o.gkHold && Math.hypot(ball.pos.x - ref.pos.x, ball.pos.z - ref.pos.z) < 0.6 && Math.hypot(ref.vel.x, ref.vel.z) > 1.5 && ref.touchCd <= 0) {
+    if (!o.gkHold && Math.hypot(ball.pos.x - ref.pos.x, ball.pos.z - ref.pos.z) < REF_R + 0.25 && Math.hypot(ref.vel.x, ref.vel.z) > 1.2 && ref.touchCd <= 0) {
       ball.owner = null; refTouchKick(Math.hypot(ref.vel.x, ref.vel.z)); o.team.anger += 5; startProtest(o, 1.2);
     }
   }
@@ -460,10 +461,10 @@ function updateBall(dt) {
     // 審判の体に当たる：走っていれば、その向きと勢いで蹴る
     {
       const dx = ball.pos.x - ref.pos.x, dz = ball.pos.z - ref.pos.z, d = Math.hypot(dx, dz);
-      if (d < 0.42 + BR && ball.pos.y < 1.85) {
+      if (d < REF_R + BR && ball.pos.y < 1.85) {
         const nx = dx / (d || 1), nz = dz / (d || 1);
         const rs = Math.hypot(ref.vel.x, ref.vel.z);
-        if (rs > 1.5 && ball.pos.y < 0.9 && (ref.vel.x * nx + ref.vel.z * nz) > 0 && ref.touchCd <= 0) refTouchKick(rs);
+        if (rs > 1.2 && ball.pos.y < 1.3 && (ref.vel.x * nx + ref.vel.z * nz) > 0 && ref.touchCd <= 0) refTouchKick(rs);
         else {
           const rvx = ball.vel.x - ref.vel.x, rvz = ball.vel.z - ref.vel.z, vn = rvx * nx + rvz * nz;
           if (vn < 0) {
@@ -471,7 +472,7 @@ function updateBall(dt) {
             if (Math.abs(vn) > 10) { ref.hurtT = 0.5; $('hurt').style.opacity = 0.7; setTimeout(() => $('hurt').style.opacity = 0, 250); }
           }
         }
-        ball.pos.x = ref.pos.x + nx * (0.42 + BR); ball.pos.z = ref.pos.z + nz * (0.42 + BR);
+        ball.pos.x = ref.pos.x + nx * (REF_R + BR); ball.pos.z = ref.pos.z + nz * (REF_R + BR);
       }
     }
     // 看板
@@ -927,7 +928,7 @@ function refTouchKick(rs) {
   dx = dx * 0.6 + fx * 0.4; dz = dz * 0.6 + fz * 0.4; const l2 = Math.hypot(dx, dz) || 1;
   tmpV.set(dx / l2, 0, dz / l2);
   const sp = clamp(4 + rs * 2.6, 6, 30);
-  const lift = clamp(0.4 + rs * 0.25 + (ref.pitch + 0.12) * 12, 0.3, 13);
+  const lift = clamp(0.3 + rs * 0.18 + (ref.pitch + 0.12) * 9, 0.2, 12);
   kickBall('ref', tmpV, sp, lift);
   ref.touchCd = 0.35; ref.kickAnim = 0.3;
   if (G.phase === 'restart' || G.phase === 'dead') {
