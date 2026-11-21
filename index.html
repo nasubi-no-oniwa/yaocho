@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5RB6XMN0QR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5RB6XMN0QR');
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>八百長蹴球</title>
+<meta name="description" content="笛ひとつで、試合が変わる。あなたは主審。ちゃんと裁くも、ぶっ壊すも自由。">
+<meta property="og:title" content="八百長蹴球">
+<meta property="og:description" content="笛ひとつで、試合が変わる。あなたは主審。">
+<meta property="og:url" content="https://nasubi-no-oniwa.com/yaocho/">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root{--red:#d9262c;--yel:#ffd21f;--ink:#0d1114;--pa:#f4f6f2}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#05080a;color:#fff;font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;overscroll-behavior:none;touch-action:none;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#sb{position:absolute;left:10px;top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;align-items:stretch;font-weight:900;font-size:15px;border-radius:6px;overflow:hidden;box-shadow:0 2px 10px #0008;background:#0d1114e6}
+#sb .tm{display:flex;align-items:center;gap:6px;padding:6px 9px}
+#sb .sw{width:10px;height:22px;border-radius:2px}
+#sb .sc{padding:6px 10px;background:#fff;color:#0d1114;font-variant-numeric:tabular-nums;display:flex;align-items:center;letter-spacing:.05em}
+#sb .ck{padding:6px 10px;background:#1f2a30;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px}
+#sb .ck b{color:#7dff9a;font-size:12px}
+#sb .ck i{font-style:normal;color:var(--yel);font-size:13px}
+#msg{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 92px);text-align:center;font-weight:900;font-size:17px;text-shadow:0 2px 0 #000,0 0 12px #000;opacity:0;transition:opacity .25s;padding:0 12px}
+#hint{position:absolute;left:0;right:0;top:44%;text-align:center;font-weight:900;font-size:19px;text-shadow:0 2px 0 #000,0 0 14px #000;opacity:0;transition:opacity .3s}
+#aim{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px;border:2px solid #fff8;border-radius:50%}
+#tgt{position:absolute;left:0;top:0;transform:translate(-50%,-100%);font-weight:900;font-size:12px;background:#0d1114cc;padding:3px 8px;border-radius:999px;white-space:nowrap;opacity:0}
+#card{position:absolute;right:16%;bottom:-40%;width:120px;height:170px;border-radius:8px;box-shadow:0 10px 30px #000a;transform:rotate(-8deg);transition:bottom .25s cubic-bezier(.2,1.4,.5,1)}
+#card.up{bottom:30%}
+#flash{position:absolute;inset:0;background:#fff;opacity:0}
+#hurt{position:absolute;inset:0;box-shadow:inset 0 0 120px #d9262c;opacity:0;transition:opacity .4s}
+/* 操作 */
+#ctl{position:fixed;inset:0;z-index:6;pointer-events:none}
+#stick{position:absolute;left:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:128px;height:128px;border-radius:50%;background:#ffffff14;border:2px solid #ffffff38;pointer-events:auto;touch-action:none}
+#knob{position:absolute;left:39px;top:39px;width:50px;height:50px;border-radius:50%;background:#ffffff70}
+#look{position:absolute;right:0;top:0;width:58%;height:100%;pointer-events:auto;touch-action:none}
+.bt{position:absolute;pointer-events:auto;touch-action:none;border-radius:50%;font-weight:900;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.1;box-shadow:0 3px 10px #0008;border:2px solid #fff6}
+#bW{right:22px;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);width:84px;height:84px;background:#f4f6f2;color:#0d1114;font-size:20px}
+#bK{right:118px;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:62px;height:62px;background:#2b3a44d9;font-size:14px}
+#bH{right:118px;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);width:56px;height:56px;background:#2b3a44d9;font-size:13px}
+#bY{right:30px;bottom:calc(env(safe-area-inset-bottom,0px) + 128px);width:46px;height:62px;border-radius:7px;background:var(--yel);color:#0d1114;font-size:12px}
+#bR{right:86px;bottom:calc(env(safe-area-inset-bottom,0px) + 164px);width:46px;height:62px;border-radius:7px;background:var(--red);font-size:12px}
+#bV{right:10px;top:calc(env(safe-area-inset-top,0px) + 48px);width:48px;height:34px;border-radius:8px;background:#0d1114cc;font-size:12px}
+#bM{right:64px;top:calc(env(safe-area-inset-top,0px) + 48px);width:48px;height:34px;border-radius:8px;background:#0d1114cc;font-size:12px}
+#bA{left:10px;top:calc(env(safe-area-inset-top,0px) + 48px);height:30px;padding:0 10px;border-radius:8px;background:#0d1114cc;font-size:12px;border-color:#ffd21f99;color:#ffd21f}
+.bt:active,.bt.on{filter:brightness(1.3);transform:scale(.95)}
+#bK .pw{position:absolute;inset:-6px;border-radius:50%;border:4px solid #ffd21f;clip-path:inset(100% 0 0 0)}
+/* 判定パネル */
+.panel{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);background:#05080a99}
+.box{width:100%;max-width:420px;max-height:100%;overflow-y:auto;background:#0d1114f2;border:2px solid #ffffff2a;border-radius:14px;padding:16px 14px;text-align:center;box-shadow:0 20px 50px #000c}
+.box h2{margin:0 0 4px;font-size:20px;font-weight:900}
+.box p{margin:4px 0 10px;font-size:13px;color:#b8c4c9;font-weight:700;line-height:1.6}
+.box .g{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.ch{padding:12px 6px;border-radius:9px;font-weight:900;font-size:15px;background:#1f2a30;border:2px solid #ffffff24}
+.ch small{display:block;font-size:11px;font-weight:700;opacity:.75;margin-top:2px}
+.ch.full{grid-column:1/-1}
+.ch.ok{border-color:#7dff9a}
+.ch.warn{border-color:#ff8a5c}
+.ch.go{background:#f4f6f2;color:#0d1114}
+.tcol{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid #fff8}
+.addn{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0}
+.addn button{width:52px;height:52px;border-radius:50%;background:#1f2a30;font-size:26px;font-weight:900;border:2px solid #ffffff30}
+.addn .n{font-size:54px;font-weight:900;font-variant-numeric:tabular-nums;min-width:110px;background:#111;color:#7dff9a;border-radius:8px;padding:0 10px;font-family:ui-monospace,Menlo,Consolas,monospace}
+/* タイトル・結果 */
+#title,#result,#half{background:radial-gradient(ellipse at 50% 30%,#14322099,#05080af0)}
+.logo{font-size:52px;font-weight:900;letter-spacing:.04em;line-height:1.05;margin:6px 0 2px;text-shadow:0 4px 0 #000}
+.logo em{font-style:normal;color:var(--yel)}
+.lead{font-size:16px;font-weight:900;line-height:1.8;margin:8px 0 14px}
+.big{display:block;width:100%;padding:15px;border-radius:10px;background:var(--yel);color:#0d1114;font-weight:900;font-size:20px;margin:10px 0;box-shadow:0 5px 0 #8a6f00}
+.big:active{transform:translateY(3px);box-shadow:0 2px 0 #8a6f00}
+.sub{display:block;width:100%;padding:11px;border-radius:9px;background:#1f2a30;font-weight:800;font-size:14px;margin:7px 0;border:2px solid #ffffff22}
+.how{text-align:left;font-size:12.5px;line-height:1.75;color:#c9d3d7;font-weight:700;background:#ffffff0d;border-radius:9px;padding:10px 12px;margin:8px 0}
+.how b{color:#fff}
+.vs{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:900;font-size:16px;margin:8px 0}
+.vs .sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.fs{font-size:64px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin:4px 0}
+.off{text-align:left;font-size:13.5px;font-weight:700;line-height:1.8;background:#ffffff0d;border-radius:9px;padding:8px 12px;margin:8px 0;max-height:180px;overflow-y:auto}
+.off .rc{display:inline-block;width:9px;height:13px;background:var(--red);border-radius:2px;vertical-align:-1px;margin-right:6px}
+#load{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#05080a;font-weight:800;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="hud">
+  <div id="sb"><div class="tm"><span class="sw" id="cA"></span><span id="nA">-</span></div><div class="sc" id="sc">0 - 0</div><div class="tm"><span id="nB">-</span><span class="sw" id="cB"></span></div><div class="ck"><b id="hf">前半</b><span id="ck">00:00</span><i id="ad"></i></div></div>
+  <div id="msg"></div>
+  <div id="hint"></div>
+  <div id="aim"></div>
+  <div id="tgt"></div>
+  <div id="card"></div>
+  <div id="hurt"></div>
+  <div id="flash"></div>
+</div>
+<div id="ctl" hidden>
+  <div id="look"></div>
+  <div id="stick"><div id="knob"></div></div>
+  <button class="bt" id="bW">笛</button>
+  <button class="bt" id="bK">蹴る<span class="pw" id="pw"></span></button>
+  <button class="bt" id="bH">持つ</button>
+  <button class="bt" id="bY">黄</button>
+  <button class="bt" id="bR">赤</button>
+  <button class="bt" id="bV">視点</button>
+  <button class="bt" id="bM">停止</button>
+  <button class="bt" id="bA" hidden>＋時間</button>
+</div>
+
+<div class="panel" id="title" hidden><div class="box">
+  <div class="logo">八百長<em>蹴球</em></div>
+  <div class="lead">あなたは主審。<br>笛ひとつで、試合が変わる。</div>
+  <div class="vs" id="tVs"></div>
+  <button class="big" id="go">キックオフへ</button>
+  <button class="sub" id="cont" hidden>続きから</button>
+  <div class="how">
+    <b>笛</b>を吹くと、試合は必ず止まる。判定はすべてあなたが決める。<br>
+    <b>黄・赤</b>は、真ん中の輪に入れた相手に出せる。だれにでも、いつでも。<br>
+    <b>蹴る・持つ</b>でボールにさわれる。あなたが入れても、ゴールはゴール。<br>
+    前半6分・後半6分。アディショナルタイムは、あなたの気分。<br>
+    PC：WASD 移動／ドラッグで視点／F 笛／Space 蹴る／E 持つ／Y 黄／R 赤／V 視点
+  </div>
+</div></div>
+
+<div class="panel" id="dec" hidden><div class="box">
+  <h2 id="dT">笛</h2>
+  <p id="dP"></p>
+  <div class="g" id="dG"></div>
+</div></div>
+
+<div class="panel" id="addp" hidden><div class="box">
+  <h2>アディショナルタイム</h2>
+  <p>第4審判がボードを掲げます。何分にしますか？</p>
+  <div class="addn"><button id="aM">−</button><div class="n" id="aN">+3</div><button id="aP">＋</button></div>
+  <button class="big" id="aOk">これで掲げる</button>
+  <button class="sub" id="aNo">あとで決める</button>
+</div></div>
+
+<div class="panel" id="half" hidden><div class="box">
+  <h2>ハーフタイム</h2>
+  <div class="fs" id="hS">0 - 0</div>
+  <div class="vs" id="hVs"></div>
+  <p>両チームはエンドを入れかえます。</p>
+  <button class="big" id="hGo">後半へ</button>
+</div></div>
+
+<div class="panel" id="pause" hidden><div class="box">
+  <h2>一時停止</h2>
+  <button class="big" id="pRe">試合にもどる</button>
+  <button class="sub" id="pEnd">試合をやめてタイトルへ</button>
+</div></div>
+
+<div class="panel" id="result" hidden><div class="box">
+  <h2>試合終了</h2>
+  <div class="vs" id="rVs"></div>
+  <div class="fs" id="rS">0 - 0</div>
+  <p id="rN"></p>
+  <div class="off" id="rOff"></div>
+  <button class="big" id="rX">Xに投稿</button>
+  <button class="sub" id="rAg">もう1試合</button>
+</div></div>
+
+<div id="load">スタジアムを準備中…</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>
