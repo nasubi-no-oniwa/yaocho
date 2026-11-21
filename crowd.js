@@ -3,7 +3,7 @@
 export function makeCrowd(AC, out) {
   const now = () => AC.currentTime;
   const comp = AC.createDynamicsCompressor();
-  comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 3.5; comp.attack.value = 0.01; comp.release.value = 0.4;
+  comp.threshold.value = -10; comp.knee.value = 10; comp.ratio.value = 2.5; comp.attack.value = 0.01; comp.release.value = 0.4;
   const bus = AC.createGain(); bus.gain.value = 1.0;
   bus.connect(comp); comp.connect(out);
 
@@ -167,7 +167,7 @@ export function makeCrowd(AC, out) {
     const t = now();
     setVowel('a', t, 0.02); choirPitch(300, t, 0.05);
     choirOut.gain.cancelScheduledValues(t); choirOut.gain.setValueAtTime(choirOut.gain.value, t);
-    choirOut.gain.linearRampToValueAtTime(0.7, t + 0.15); choirOut.gain.setValueAtTime(0.7, t + sec); choirOut.gain.linearRampToValueAtTime(0, t + sec + 1.5);
+    choirOut.gain.linearRampToValueAtTime(1.3, t + 0.15); choirOut.gain.setValueAtTime(1.3, t + sec); choirOut.gain.linearRampToValueAtTime(0, t + sec + 1.5);
     for (let k = 0; k < sec * 3; k++) whistle(t + Math.random() * sec, 1.2);
   }
 
@@ -178,11 +178,11 @@ export function makeCrowd(AC, out) {
       S.anger = anger;
       const t = now();
       if (t > S.busyUntil) {
-        const lvl = 0.06 + S.ex * 0.75;
+        const lvl = 0.03 + S.ex * 0.6;
         roarG.gain.setTargetAtTime(lvl, t, 0.35);
         roarF.frequency.setTargetAtTime(900 + S.ex * 2600, t, 0.4);
       }
-      bedG.gain.setTargetAtTime(0.5 + S.ex * 0.25, t, 0.5);
+      bedG.gain.setTargetAtTime(0.3 + S.ex * 0.2, t, 0.5);
       booG.gain.setTargetAtTime(Math.max(0, (anger - 22) / 78) * 0.9, t, 0.6);
       // チャント（怒っているときはやめる）
       if (!S.chant && t > S.chantNext && t > S.busyUntil && anger < 45) startChant(0.85 + Math.random() * 0.3);
@@ -192,11 +192,11 @@ export function makeCrowd(AC, out) {
       S.whT -= dt;
       if (S.whT <= 0) { S.whT = 0.3 + Math.random() * (anger > 40 ? 1.2 : 7); if (anger > 40 || Math.random() < 0.4) whistle(t, anger > 40 ? 1.3 : 0.6); }
     },
-    shot() { swell(0.95, 0.5, 0.6); stopChant(); },
+    shot() { swell(1.4, 0.5, 0.6); stopChant(); },
     miss() { groan(); },
-    save() { swell(0.8, 0.4, 1.2); for (let k = 0; k < 3; k++) whistle(now() + Math.random() * 0.6); clap(now() + 0.3, 30, 0.8); },
-    goal() { swell(1.25, 4.5, 3.5); cheerVoice(4); for (let b = 0; b < 16; b++) { drum(now() + 0.6 + b * 0.24, 1); clap(now() + 0.6 + b * 0.24, 20, 1); } S.chantNext = now() + 9; },
-    foul() { swell(0.55, 0.15, 0.6); for (let k = 0; k < 4; k++) whistle(now() + Math.random() * 0.5, 1.3); },
+    save() { swell(1.3, 0.4, 1.2); for (let k = 0; k < 3; k++) whistle(now() + Math.random() * 0.6); clap(now() + 0.3, 30, 0.8); },
+    goal() { swell(2.2, 4.5, 3.5); cheerVoice(4); for (let b = 0; b < 16; b++) { drum(now() + 0.6 + b * 0.24, 1); clap(now() + 0.6 + b * 0.24, 20, 1); } S.chantNext = now() + 9; },
+    foul() { swell(0.9, 0.15, 0.6); for (let k = 0; k < 4; k++) whistle(now() + Math.random() * 0.5, 1.3); },
     card(cheer) { if (cheer) { swell(0.7, 0.4, 1); clap(now(), 30, 0.9); } else { swell(0.5, 0.2, 0.8); for (let k = 0; k < 6; k++) whistle(now() + Math.random() * 0.8, 1.4); } },
     ooh() { swell(0.8, 0.3, 0.8); },
   };

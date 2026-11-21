@@ -9,6 +9,7 @@ const pick = a => a[(Math.random() * a.length) | 0];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const NR = new URLSearchParams(location.search).has('nr');
+const REC = new URLSearchParams(location.search).has('rec');
 const TS = +(new URLSearchParams(location.search).get('ts') || 1);
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
 
@@ -1378,6 +1379,7 @@ const ringM = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.72, 32), new THREE.M
 ringM.rotation.x = -Math.PI / 2; ringM.visible = false; scene.add(ringM);
 const throwGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.22, 8), throwMat = new THREE.MeshStandardMaterial({ color: '#cfe8ff', roughness: 0.2, transparent: true, opacity: 0.85 });
 function tick() {
+  if (REC) return;
   requestAnimationFrame(tick);
   const now = performance.now(); let dt = Math.min(0.05, (now - last) / 1000); last = now; perf = now;
   crowdU.uTime.value = now / 1000;
@@ -1575,4 +1577,10 @@ function begin(saved) {
   try { gtag('event', 'game_start', { game: 'yaocho' }); } catch (e) { }
 }
 $('go').onclick = () => begin(null);
+if (REC) {
+  window.__api = { G, ref, ball, giveCard, onWhistle, setRestart, refTouchKick, offBallViolence, tackle, startProtest, msg, hint, closePanel, active, allActive, nearest, begin, flash, board: () => board,
+    setBoard: n => { G.added = n; boardT = 10; },
+    advance(n, dt = 1 / 30) { for (let i = 0; i < n; i++) { perf += dt * 1000; crowdU.uTime.value = perf / 1000; if (!G.paused && !panelOpen) step(dt); updateCam(dt); const ex = clamp(G.excite, 0, 1); crowdU.uJump.value = lerp(crowdU.uJump.value, 0.04 + ex * 0.35, 0.05); } renderer.render(scene, cam); },
+    render() { renderer.render(scene, cam); } };
+}
 $('cont').onclick = () => begin(G.saved);
