@@ -395,6 +395,7 @@ function kickBall(by, dir, speed, lift) {
   ball.owner = null; ball.held = false;
   ball.vel.set(dir.x * speed, lift, dir.z * speed);
   ball.last = by; ball.lastKick = by; ball.kickCd = 0.32;
+  if (by && by !== 'ref') ball.lastP = by;
   if (by && by !== 'ref') { by.kickT = 0.35; by.act = 'kick'; by.actT = 0.35; }
   sKick(ball.pos, speed / 20);
 }
@@ -530,9 +531,12 @@ function cancelGoal() {
   setRestart('goalkick', gp.def, V3(0, BR, -gp.def.dir * (HL - 3)));
 }
 function onOut(kind, s) {
+  G.outs = (G.outs || 0) + 1;
   if (kind === 'goal' && performance.now() - (G.lastShot || 0) < 2500) CR('miss');
   ball.owner = null;
-  const lastTeam = ball.last && ball.last !== 'ref' ? ball.last.team : null;
+  const lastTeam = ball.last && ball.last !== 'ref' ? ball.last.team : (ball.lastP ? ball.lastP.team : null);
+  const byRef = ball.last === 'ref';
+  if (byRef) msg('主審が蹴ったボールが外へ', 1.6);
   let correct, type, spot;
   if (kind === 'touch') {
     const t = lastTeam ? G.teams[1 - lastTeam.i] : G.teams[Math.random() < .5 ? 0 : 1];
@@ -612,21 +616,25 @@ function executeRestart() {
   if (R.type === 'corner' && Math.random() < 0.85) {
     const gz = R.spot.z > 0 ? HL : -HL; tmpV.set(rnd(-4, 4), 0, gz - Math.sign(gz) * rnd(4, 8));
     passTo(p, tmpV, 1.3, true);
-  } else if (tgt) passTo(p, leadPoint(tgt), R.type === 'goalkick' ? 1.15 : 1, R.type === 'goalkick');
+  } else if (tgt) { ball.intended = tgt; passTo(p, leadPoint(tgt), R.type === 'goalkick' ? 1.15 : 1, R.type === 'goalkick'); }
   else passTo(p, tmpV.set(p.pos.x, 0, p.pos.z + p.team.dir * 12), 1, false);
   if (R.type === 'throw') { p.act = 'throw'; p.actT = 0.5; ball.vel.y = 3.5; }
 }
 function nearest(list, pos, n = 1) { return list.slice().sort((a, b) => a.pos.distanceToSquared(pos) - b.pos.distanceToSquared(pos)).slice(0, n); }
 function leadPoint(m) { return tmpV2.copy(m.pos).addScaledVector(m.vel, 0.55); }
+// 転がるボールが止まるまでの距離（updateBall の減速と同じ式）
+function rollDist(v) { return v / 0.32 - (0.9 / (0.32 * 0.32)) * Math.log(1 + 0.32 * v / 0.9); }
+function speedFor(d) { let lo = 2, hi = 40; for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if (rollDist(m) < d) lo = m; else hi = m; } return (lo + hi) / 2; }
 function passTo(p, target, mul = 1, air = false) {
   G.st.pass++;
-  target.x = clamp(target.x, -HW + 1.5, HW - 1.5); target.z = clamp(target.z, -HL + 1, HL - 1);
+  target.x = clamp(target.x, -HW + 2.5, HW - 2.5); target.z = clamp(target.z, -HL + 1.5, HL - 1.5);
   tmpV.subVectors(target, ball.pos); tmpV.y = 0;
   const d = tmpV.length() || 1; tmpV.divideScalar(d);
-  const err = (1.15 - p.team.str) * 0.18; const a = rnd(-err, err);
+  const err = (1.12 - p.team.str) * 0.12; const a = rnd(-err, err);
   const c = Math.cos(a), s = Math.sin(a); const x = tmpV.x * c - tmpV.z * s, z = tmpV.x * s + tmpV.z * c; tmpV.set(x, 0, z);
-  let sp = clamp(d * 0.95 + 5.5, 8, 23) * mul, lift = air || d > 24 ? clamp(d * 0.32, 4, 10) : 0.4;
-  if (air) sp = clamp(d * 0.7 + 4, 9, 22) * mul;
+  let sp, lift;
+  if (air || d > 26) { lift = clamp(d * 0.2, 4, 8); const t = 2 * lift / 9.8; sp = clamp((d * 0.82) / t, 6, 24); }
+  else { sp = clamp(speedFor(d + 3.5) * rnd(0.95, 1.06) * (mul > 1 ? 1.05 : 1), 5, 24); lift = 0.3; }
   kickBall(p, tmpV, sp, lift);
 }
 function choosePass(p, mode = 'normal') {
@@ -649,9 +657,11 @@ function distToSeg(p, a, b) {
   return Math.hypot(p.x - (a.x + abx * t), p.z - (a.z + abz * t));
 }
 function shoot(p) {
+  ball.intended = null;
   G.st.shot++;
   const s = p.team.dir, gz = s * HL;
-  const tx = rnd(-GWH + 0.25, GWH - 0.25) * (Math.random() < 0.6 ? 1 : 0.7);
+  const wide = Math.random() < 0.35 - p.team.str * 0.15;
+  const tx = wide ? (Math.random() < .5 ? -1 : 1) * rnd(GWH + 0.3, GWH + 3) : rnd(-GWH + 0.25, GWH - 0.25) * (Math.random() < 0.6 ? 1 : 0.7);
   tmpV.set(tx - ball.pos.x, 0, gz - ball.pos.z);
   const d = tmpV.length(); tmpV.normalize();
   const err = (1.1 - p.team.str) * 0.09 + d * 0.002; const a = rnd(-err, err);
@@ -668,14 +678,15 @@ function scheduleRough() {
   G.roughSched = arr.sort((a, b) => a - b);
 }
 function tackle(t, v) {
+  t.tackCd = rnd(1.4, 2.8);
+  if (Math.random() < 0.45 && !G.violentNext) return; // つめるだけ
   G.st.tackle++;
-  t.tackCd = rnd(0.7, 1.5);
   if (!canMove(t) || !canMove(v)) return;
   let sev = 'clean';
   const r = Math.random();
   if (G.violentNext) { sev = 'red'; G.violentNext = false; }
-  else if (r < 0.06) sev = 'yellow';
-  else if (r < 0.19) sev = 'foul';
+  else if (r < 0.05) sev = 'yellow';
+  else if (r < 0.17) sev = 'foul';
   t.act = 'slide'; t.actT = 0.7; t.vel.multiplyScalar(0.5);
   const winP = 0.42 + (t.team.str - v.team.str) * 0.4;
   if (sev === 'clean') {
@@ -919,7 +930,17 @@ function refTouchKick(rs) {
   const lift = clamp(0.4 + rs * 0.25 + (ref.pitch + 0.12) * 12, 0.3, 13);
   kickBall('ref', tmpV, sp, lift);
   ref.touchCd = 0.35; ref.kickAnim = 0.3;
-  if (G.phase === 'restart' && G.restart && G.restart.type === 'pk') { G.restart.team.anger += 10; startProtest(G.restart.taker, 3); msg('主審がPKのボールを蹴った！', 2); }
+  if (G.phase === 'restart' || G.phase === 'dead') {
+    const R = G.restart;
+    if (R && R.type === 'pk') { R.team.anger += 15; G.crowdAnger += 10; startProtest(R.taker, 2); msg('主審がPKのボールを蹴った！ 試合はそのまま続く', 2.4); }
+    else if (R && R.type === 'kickoff') { msg('主審のキックオフ！', 2); G.koDone = true; if (G.clock < 1) G.clock = 0; }
+    else msg('主審のキックで試合再開！', 2);
+    if (R && R.team) { R.team.anger += 6; }
+    G.restart = null; G.pk = null; hint('');
+    for (const p of allActive()) p.freeze = 0;
+    setPhase('live');
+    G.excite = Math.min(1, G.excite + 0.4);
+  }
 }
 function refHold() {
   if (ball.held) { refThrow(); return; }
@@ -1102,7 +1123,8 @@ function updatePlayers(dt) {
       if (ball.owner && ball.owner.team === t) continue;
       const cand = active(t).filter(p => canMove(p) && (p.role !== 'GK' || inBox(t, ball.pos)));
       const s = cand.sort((a, b) => a.pos.distanceToSquared(ball.pos) - b.pos.distanceToSquared(ball.pos));
-      if (s[0]) chasers.add(s[0]);
+      const it = ball.intended && ball.intended.team === t && !ball.intended.off && canMove(ball.intended) ? ball.intended : null;
+      if (it) chasers.add(it); else if (s[0]) chasers.add(s[0]);
       if (s[1] && ball.owner && s[1].pos.distanceTo(ball.pos) < 9) chasers.add(s[1]);
     }
   }
@@ -1191,10 +1213,10 @@ function updatePlayers(dt) {
     // ボールを取る
     if (live && !ball.owner && !ball.held && canMove(p) && p.state === 'play' && !(p.freeze > 0)) {
       const dx = ball.pos.x - p.pos.x, dz = ball.pos.z - p.pos.z, d = Math.hypot(dx, dz);
-      const reach = p.role === 'GK' && inBox(p.team, p.pos) ? 1.3 : 0.75;
+      const reach = p.role === 'GK' && inBox(p.team, p.pos) ? 1.3 : (ball.intended === p ? 1.0 : 0.8);
       const hs = Math.hypot(ball.vel.x, ball.vel.z);
-      if (d < reach && ball.pos.y < (p.role === 'GK' ? 2.3 : 1.0) && !(ball.lastKick === p && ball.kickCd > 0) && (hs < 22 || p.role === 'GK')) {
-        ball.owner = p; ball.last = p; p.decideT = rnd(0.15, 0.45);
+      if (d < reach && ball.pos.y < (p.role === 'GK' ? 2.3 : 1.0) && !(ball.lastKick === p && ball.kickCd > 0) && (p.role === 'GK' ? (hs < 13 || (d < 0.8 && hs < 21)) : hs < 22)) {
+        ball.owner = p; ball.last = p; ball.lastP = p; ball.intended = null; p.decideT = rnd(0.15, 0.45);
         if (p.role === 'GK' && inBox(p.team, p.pos)) { p.gkHold = true; p.holdT = rnd(1.2, 2.2); }
         if (G.phase === 'pkshot') setPhase('live');
       }
@@ -1219,26 +1241,28 @@ function dribble(p, dt) {
   const t = p.team, opp = active(G.teams[1 - t.i]);
   if (p.gkHold) {
     p.vel.multiplyScalar(Math.pow(0.05, dt)); p.holdT -= dt;
-    if (p.holdT <= 0) { p.gkHold = false; const m = choosePass(p, 'long'); if (m) passTo(p, leadPoint(m), 1.1, m.pos.distanceTo(p.pos) > 18); else passTo(p, tmpV.set(rnd(-10, 10), 0, p.pos.z + t.dir * 30), 1, true); }
+    if (p.holdT <= 0) { p.gkHold = false; const m = choosePass(p, 'long'); if (m) { ball.intended = m; } if (m) passTo(p, leadPoint(m), 1.1, m.pos.distanceTo(p.pos) > 18); else passTo(p, tmpV.set(rnd(-10, 10), 0, p.pos.z + t.dir * 30), 1, true); }
     return;
   }
   const gz = t.dir * HL;
   // 前へ進む向き（相手をよける）
   tmpV.set(-p.pos.x * 0.15, 0, gz - p.pos.z).normalize();
+  if (Math.abs(p.pos.x) > HW - 5) tmpV.x -= Math.sign(p.pos.x) * (Math.abs(p.pos.x) - (HW - 5)) * 0.6;
+  if (Math.abs(p.pos.z) > HL - 3 && Math.abs(p.pos.x) > GWH + 3) tmpV.z -= Math.sign(p.pos.z) * 0.8;
   let near = null, nd = 99;
   for (const o of opp) { const d = o.pos.distanceTo(p.pos); if (d < nd) { nd = d; near = o; } if (d < 5) { tmpV2.subVectors(p.pos, o.pos).setY(0).normalize(); tmpV.addScaledVector(tmpV2, (5 - d) * 0.25); } }
   tmpV.normalize();
-  const ms = maxSpeed(p) * 0.82;
+  const ms = maxSpeed(p) * 0.9;
   const acc = 10 * dt;
   p.vel.x += clamp(tmpV.x * ms - p.vel.x, -acc, acc); p.vel.z += clamp(tmpV.z * ms - p.vel.z, -acc, acc);
   p.decideT -= dt;
   if (p.decideT > 0) return;
   p.decideT = rnd(0.25, 0.5);
   const dG = Math.hypot(p.pos.x, gz - p.pos.z);
-  if (dG < 17 && (Math.random() < 0.35 + (17 - dG) * 0.04)) { shoot(p); return; }
+  if (dG < 22 && (Math.random() < 0.25 + (22 - dG) * 0.05)) { shoot(p); return; }
   const pressure = nd < 2.6;
   if ((pressure && Math.random() < 0.65) || Math.random() < 0.1) {
-    const m = choosePass(p, pressure ? 'normal' : 'normal'); if (m) { passTo(p, leadPoint(m), 1, m.pos.distanceTo(p.pos) > 24 && Math.random() < 0.5); return; }
+    const m = choosePass(p, pressure ? 'normal' : 'normal'); if (m) { ball.intended = m; passTo(p, leadPoint(m), 1, m.pos.distanceTo(p.pos) > 24 && Math.random() < 0.5); return; }
   }
 }
 function gkLogic(p, dt, tgt) {
@@ -1256,7 +1280,7 @@ function gkLogic(p, dt, tgt) {
         p.dived = true; p.act = 'dive'; p.actT = 1.2; p.fallDir = Math.sign(dx) || 1;
         const reach = 1.1 + 1.2 * t.str;
         const hsp = Math.hypot(ball.vel.x, ball.vel.z);
-        const pSave = clamp(0.35 + t.str * 0.4 - (hsp - 18) * 0.03 - (Math.abs(dx) > reach ? 0.6 : 0) - (cy > 1.8 ? 0.15 : 0), 0.03, 0.85);
+        const pSave = clamp(0.5 + t.str * 0.35 - (hsp - 18) * 0.03 - (Math.abs(dx) > reach ? 0.6 : 0) - (cy > 1.8 ? 0.15 : 0), 0.03, 0.85);
         if (Math.random() < pSave) {
           G.pendingSave = { p, at: performance.now() + tt * 1000 * 0.85, catch: hsp < 19 && Math.random() < 0.5 };
         }
@@ -1382,7 +1406,8 @@ function step(dt) {
   if (G.pendingSave && performance.now() >= G.pendingSave.at) {
     const s = G.pendingSave; G.pendingSave = null;
     if (!ball.owner && !ball.held && ball.pos.distanceTo(s.p.pos) < 3.2) {
-      if (s.catch) { ball.owner = s.p; s.p.gkHold = true; s.p.holdT = 1.6; ball.last = s.p; msg('キャッチ！', 1.2); }
+      G.st.save++;
+    if (s.catch) { ball.owner = s.p; s.p.gkHold = true; s.p.holdT = 1.6; ball.last = s.p; msg('キャッチ！', 1.2); }
       else { ball.vel.z *= -0.35; ball.vel.x = rnd(-6, 6); ball.vel.y = rnd(1, 4); ball.last = s.p; sKick(ball.pos, 1); msg('セーブ！', 1.2); }
       if (G.phase === 'pkshot') setPhase('live');
       G.excite = 1; CR('save');
