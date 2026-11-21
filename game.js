@@ -1,4 +1,5 @@
 import { THREE, GLTFLoader } from './lib.js';
+import { makeCrowd } from './crowd.js';
 
 // ================= 基本 =================
 const $ = id => document.getElementById(id);
@@ -287,27 +288,18 @@ const G = {
 };
 window.G = G; G.st = { shot: 0, tackle: 0, foul: 0, save: 0, pass: 0 };
 const ball = { pos: V3(0, BR, 0), vel: V3(), owner: null, held: false, last: null, lastKick: null, kickCd: 0, mesh: null, spin: V3() };
-const ref = { pos: V3(0, 0, -4), vel: V3(), yaw: 0, pitch: -0.12, body: null, cardT: 0, cardCol: null, hurtT: 0, kickHold: 0 };
+const ref = { touchCd: 0, pos: V3(0, 0, -4), vel: V3(), yaw: 0, pitch: -0.12, body: null, cardT: 0, cardCol: null, hurtT: 0, kickHold: 0 };
 const throwns = [];
+window.__ref = ref; window.__ball = ball;
 
 // ================= 音 =================
-let AC = null, crowdG = null, booG = null, master = null;
+let AC = null, master = null;
+let crowd = null;
 function audioInit() {
-  if (AC) return;
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-  master = AC.createGain(); master.gain.value = 0.9; master.connect(AC.destination);
-  const len = AC.sampleRate * 3, buf = AC.createBuffer(2, len, AC.sampleRate);
-  for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch); let b = 0; for (let i = 0; i < len; i++) { b = 0.97 * b + 0.03 * (Math.random() * 2 - 1); d[i] = (Math.random() * 2 - 1) * 0.5 + b * 3; } }
-  const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
-  const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.4;
-  crowdG = AC.createGain(); crowdG.gain.value = 0.18;
-  src.connect(bp); bp.connect(crowdG); crowdG.connect(master);
-  const src2 = AC.createBufferSource(); src2.buffer = buf; src2.loop = true;
-  const lp = AC.createBiquadFilter(); lp.type = 'bandpass'; lp.frequency.value = 260; lp.Q.value = 2.2;
-  const lfo = AC.createOscillator(); lfo.frequency.value = 0.35; const lg = AC.createGain(); lg.gain.value = 60; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
-  booG = AC.createGain(); booG.gain.value = 0;
-  src2.connect(lp); lp.connect(booG); booG.connect(master);
-  src.start(); src2.start(0.7);
+  master = AC.createGain(); master.gain.value = 1.0; master.connect(AC.destination);
+  try { crowd = makeCrowd(AC, master); } catch (e) { console.error(e); }
 }
 function sWhistle(long = false) {
   if (!AC) return;
@@ -325,15 +317,8 @@ function sKick(pos, power = 1) {
   const g = AC.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
   o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.13);
 }
-function sCheer(amt = 1) {
-  if (!AC) return;
-  const t = AC.currentTime;
-  crowdG.gain.cancelScheduledValues(t);
-  crowdG.gain.setValueAtTime(crowdG.gain.value, t);
-  crowdG.gain.linearRampToValueAtTime(0.18 + 0.55 * amt, t + 0.3);
-  crowdG.gain.linearRampToValueAtTime(0.18, t + 4 * amt + 1);
-}
-
+function sCheer(amt = 1) { if (crowd) crowd.ooh(); }
+const CR = (k, ...a) => { try { crowd && crowd[k](...a); } catch (e) { } };
 // ================= HUD =================
 let msgT = 0;
 function msg(t, dur = 2.6) { $('msg').innerHTML = t; $('msg').style.opacity = 1; msgT = dur; }
@@ -427,6 +412,12 @@ function updateBall(dt) {
     ball.vel.set(0, 0, 0);
   } else if (ball.owner) {
     const o = ball.owner;
+    if (!o.gkHold && Math.hypot(ball.pos.x - ref.pos.x, ball.pos.z - ref.pos.z) < 0.6 && Math.hypot(ref.vel.x, ref.vel.z) > 1.5 && ref.touchCd <= 0) {
+      ball.owner = null; refTouchKick(Math.hypot(ref.vel.x, ref.vel.z)); o.team.anger += 5; startProtest(o, 1.2);
+    }
+  }
+  if (ball.held) {} else if (ball.owner) {
+    const o = ball.owner;
     if (o.role === 'GK' && o.gkHold) {
       ball.pos.set(o.pos.x + Math.sin(o.face) * 0.35, 1.0, o.pos.z + Math.cos(o.face) * 0.35);
       ball.vel.set(0, 0, 0);
@@ -465,13 +456,21 @@ function updateBall(dt) {
         if (ball.pos.y > GH - BR) { ball.pos.y = GH - BR; ball.vel.y = -Math.abs(ball.vel.y) * 0.2; }
       }
     }
-    // 審判の体に当たる
+    // 審判の体に当たる：走っていれば、その向きと勢いで蹴る
     {
       const dx = ball.pos.x - ref.pos.x, dz = ball.pos.z - ref.pos.z, d = Math.hypot(dx, dz);
-      if (d < 0.36 + BR && ball.pos.y < 1.85) {
-        const nx = dx / (d || 1), nz = dz / (d || 1), vn = ball.vel.x * nx + ball.vel.z * nz;
-        if (vn < 0) { ball.vel.x -= 1.5 * vn * nx; ball.vel.z -= 1.5 * vn * nz; ball.last = 'ref'; sKick(ball.pos, 0.6); if (Math.abs(vn) > 8) { ref.hurtT = 0.6; $('hurt').style.opacity = 0.7; setTimeout(() => $('hurt').style.opacity = 0, 250); } }
-        ball.pos.x = ref.pos.x + nx * (0.36 + BR); ball.pos.z = ref.pos.z + nz * (0.36 + BR);
+      if (d < 0.42 + BR && ball.pos.y < 1.85) {
+        const nx = dx / (d || 1), nz = dz / (d || 1);
+        const rs = Math.hypot(ref.vel.x, ref.vel.z);
+        if (rs > 1.5 && ball.pos.y < 0.9 && (ref.vel.x * nx + ref.vel.z * nz) > 0 && ref.touchCd <= 0) refTouchKick(rs);
+        else {
+          const rvx = ball.vel.x - ref.vel.x, rvz = ball.vel.z - ref.vel.z, vn = rvx * nx + rvz * nz;
+          if (vn < 0) {
+            ball.vel.x -= 1.6 * vn * nx; ball.vel.z -= 1.6 * vn * nz; ball.last = 'ref'; sKick(ball.pos, 0.6);
+            if (Math.abs(vn) > 10) { ref.hurtT = 0.5; $('hurt').style.opacity = 0.7; setTimeout(() => $('hurt').style.opacity = 0, 250); }
+          }
+        }
+        ball.pos.x = ref.pos.x + nx * (0.42 + BR); ball.pos.z = ref.pos.z + nz * (0.42 + BR);
       }
     }
     // 看板
@@ -509,7 +508,7 @@ function onGoal(s) {
   G.goalPending = { att, def, by: ball.last, t: 0 };
   setPhase('goal');
   att.score++;
-  sCheer(1.2); flash(0.35);
+  CR('goal'); flash(0.35);
   const by = ball.last === 'ref' ? '<b style="color:#ffd21f">主審</b>' : ball.last && ball.last.team === def ? `${pName(ball.last)}（オウンゴール）` : ball.last ? pName(ball.last) : '';
   msg(`ゴール！ ${tName(att)}<br><small>${by}</small>`, 4);
   for (const p of active(att)) { if (p.state === 'play') { p.act = 'cele'; p.actT = 4; } }
@@ -531,6 +530,7 @@ function cancelGoal() {
   setRestart('goalkick', gp.def, V3(0, BR, -gp.def.dir * (HL - 3)));
 }
 function onOut(kind, s) {
+  if (kind === 'goal' && performance.now() - (G.lastShot || 0) < 2500) CR('miss');
   ball.owner = null;
   const lastTeam = ball.last && ball.last !== 'ref' ? ball.last.team : null;
   let correct, type, spot;
@@ -658,6 +658,7 @@ function shoot(p) {
   const c = Math.cos(a), sn = Math.sin(a); const x = tmpV.x * c - tmpV.z * sn, z = tmpV.x * sn + tmpV.z * c; tmpV.set(x, 0, z);
   kickBall(p, tmpV, rnd(19, 27) * (0.9 + p.team.str * 0.15), rnd(0.8, 3.6) + d * 0.04);
   G.excite = Math.min(1, G.excite + 0.5);
+  G.lastShot = performance.now(); CR('shot');
 }
 
 // ---------- タックル・反則 ----------
@@ -693,6 +694,7 @@ function tackle(t, v) {
   G.offenses.push({ p: t, sev, real: performance.now() });
   // 倒された側の訴え
   for (const m of nearest(active(v.team).filter(x => x !== v), spot, 2)) { m.appeal = 1.4; }
+  if (sev !== 'foul') CR('foul');
   if (sev === 'red') { G.excite = 1; G.crowdAnger += 12; msg('<span style="color:#ff8a8a">危ないタックル！</span>', 1.6); }
 }
 function foulFall(v, sev) {
@@ -743,11 +745,11 @@ function giveCard(p, col) {
     if (ball.owner === p) ball.owner = null;
     G.sentOff.push({ p, t: G.clock, half: G.half, two: col === 'Y' });
     msg(`<span style="color:#ff6b6b">退場</span>：${pName(p)}${col === 'Y' ? '（イエロー2枚）' : ''}`, 3.2);
-    sCheer(0.6);
     // GKが退場したら代わりを立てる
     if (p.role === 'GK') { const rep = active(p.team).filter(x => x.role !== 'GK').sort((a, b) => a.slot - b.slot)[0]; if (rep) { rep.role = 'GK'; rep.slot = 0; } }
     if (active(p.team).length === 0) { setTimeout(() => endMatch(), 2500); }
   } else msg(`イエローカード：${pName(p)}`, 2.6);
+  CR('card', just);
   const ang = just ? 4 : 22;
   p.team.anger += ang; G.crowdAnger += just ? 2 : 14;
   if (!just) for (const m of nearest(active(p.team), p.pos, 3)) startProtest(m, 3.5);
@@ -897,14 +899,26 @@ function onWhistle() {
 function refNearBall(r = 1.2) { return Math.hypot(ball.pos.x - ref.pos.x, ball.pos.z - ref.pos.z) < r && ball.pos.y < 1.6; }
 function refKick(power) {
   if (ball.held) { refThrow(); return; }
-  if (!refNearBall(1.3)) { msg('ボールが遠い', 1); return; }
+  if (!refNearBall(1.7)) { msg('ボールが遠い', 1); return; }
   const was = ball.owner; ball.owner = null;
   const fx = Math.sin(ref.yaw), fz = Math.cos(ref.yaw);
   tmpV.set(fx, 0, fz);
-  const sp = lerp(9, 30, power), lift = clamp(1 + (ref.pitch + 0.1) * 14 + power * 3, 0.3, 14);
+  const sp = lerp(13, 34, power), lift = clamp(1 + (ref.pitch + 0.1) * 14 + power * 3, 0.3, 14);
   kickBall('ref', tmpV, sp, lift);
   ref.kickAnim = 0.35;
   if (was) { was.team.anger += 8; startProtest(was, 1.5); }
+  if (G.phase === 'restart' && G.restart && G.restart.type === 'pk') { G.restart.team.anger += 10; startProtest(G.restart.taker, 3); msg('主審がPKのボールを蹴った！', 2); }
+}
+function refTouchKick(rs) {
+  // 走る向き（動いていなければ見ている向き）に、速さに応じて蹴る
+  let dx = ref.vel.x, dz = ref.vel.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+  const fx = Math.sin(ref.yaw), fz = Math.cos(ref.yaw);
+  dx = dx * 0.6 + fx * 0.4; dz = dz * 0.6 + fz * 0.4; const l2 = Math.hypot(dx, dz) || 1;
+  tmpV.set(dx / l2, 0, dz / l2);
+  const sp = clamp(4 + rs * 2.6, 6, 30);
+  const lift = clamp(0.4 + rs * 0.25 + (ref.pitch + 0.12) * 12, 0.3, 13);
+  kickBall('ref', tmpV, sp, lift);
+  ref.touchCd = 0.35; ref.kickAnim = 0.3;
   if (G.phase === 'restart' && G.restart && G.restart.type === 'pk') { G.restart.team.anger += 10; startProtest(G.restart.taker, 3); msg('主審がPKのボールを蹴った！', 2); }
 }
 function refHold() {
@@ -939,27 +953,39 @@ let curTarget = null;
 {
   const stick = $('stick'), knob = $('knob');
   let sid = null, sx = 0, sy = 0;
-  stick.addEventListener('pointerdown', e => { sid = e.pointerId; const r = stick.getBoundingClientRect(); sx = r.left + r.width / 2; sy = r.top + r.height / 2; stick.setPointerCapture(sid); mv(e); });
-  const mv = e => { if (e.pointerId !== sid) return; let dx = e.clientX - sx, dy = e.clientY - sy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.mx = dx / m; input.mz = -dy / m; };
-  stick.addEventListener('pointermove', mv);
-  const up = e => { if (e.pointerId !== sid) return; sid = null; knob.style.transform = ''; input.mx = input.mz = 0; };
-  stick.addEventListener('pointerup', up); stick.addEventListener('pointercancel', up);
+  const stStart = (id, x, y) => { sid = id; const r = stick.getBoundingClientRect(); sx = r.left + r.width / 2; sy = r.top + r.height / 2; stMove(x, y); };
+  const stMove = (x, y) => { let dx = x - sx, dy = y - sy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.mx = dx / m; input.mz = -dy / m; };
+  const stEnd = () => { sid = null; knob.style.transform = ''; input.mx = input.mz = 0; };
+  if ('ontouchstart' in window) {
+    stick.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; stStart(t.identifier, t.clientX, t.clientY); }, { passive: false });
+    addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === sid) stMove(t.clientX, t.clientY); }, { passive: false });
+    const te = e => { for (const t of e.changedTouches) if (t.identifier === sid) stEnd(); };
+    addEventListener('touchend', te); addEventListener('touchcancel', te);
+  } else {
+    stick.addEventListener('pointerdown', e => stStart(e.pointerId, e.clientX, e.clientY));
+    addEventListener('pointermove', e => { if (e.pointerId === sid) stMove(e.clientX, e.clientY); });
+    addEventListener('pointerup', e => { if (e.pointerId === sid) stEnd(); });
+  }
+  // 視点：指の番号で追いかけ、指が離れたら必ずリセットする
   const look = $('look'); let lid = null, lx = 0, ly = 0;
-  look.addEventListener('pointerdown', e => { lid = e.pointerId; lx = e.clientX; ly = e.clientY; look.setPointerCapture(lid); });
-  look.addEventListener('pointermove', e => { if (e.pointerId !== lid) return; ref.yaw -= (e.clientX - lx) * 0.0058; ref.pitch = clamp(ref.pitch - (e.clientY - ly) * 0.0045, -1.1, 0.9); lx = e.clientX; ly = e.clientY; });
-  const lu = e => { if (e.pointerId === lid) lid = null; }; look.addEventListener('pointerup', lu); look.addEventListener('pointercancel', lu);
+  const lookStart = (id, x, y) => { lid = id; lx = x; ly = y; };
+  const lookMove = (x, y) => { ref.yaw -= (x - lx) * 0.0058; ref.pitch = clamp(ref.pitch - (y - ly) * 0.0045, -1.1, 0.9); lx = x; ly = y; };
+  if ('ontouchstart' in window) {
+    look.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; lookStart(t.identifier, t.clientX, t.clientY); }, { passive: false });
+    addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === lid) { lookMove(t.clientX, t.clientY); } }, { passive: false });
+    const te = e => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; };
+    addEventListener('touchend', te); addEventListener('touchcancel', te);
+  } else {
+    look.addEventListener('pointerdown', e => { lookStart(e.pointerId, e.clientX, e.clientY); });
+    addEventListener('pointermove', e => { if (e.pointerId === lid) lookMove(e.clientX, e.clientY); });
+    addEventListener('pointerup', e => { if (e.pointerId === lid) lid = null; });
+  }
   // PC：画面ドラッグで視点
-  let md = false; canvas.addEventListener('mousedown', e => { md = true; lx = e.clientX; ly = e.clientY; });
+  let md = false; canvas.addEventListener('mousedown', e => { if (IS_TOUCH) return; md = true; lx = e.clientX; ly = e.clientY; });
   addEventListener('mouseup', () => md = false);
   addEventListener('mousemove', e => { if (!md || IS_TOUCH) return; ref.yaw -= (e.clientX - lx) * 0.004; ref.pitch = clamp(ref.pitch - (e.clientY - ly) * 0.003, -1.1, 0.9); lx = e.clientX; ly = e.clientY; });
   const tap = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); fn(); });
   tap('bW', onWhistle);
-  let kd = 0; const pw = $('pw');
-  $('bK').addEventListener('pointerdown', e => { e.preventDefault(); audioInit(); kd = performance.now(); ref.kickHold = 0.001; });
-  const kup = () => { if (!kd) return; const p = clamp((performance.now() - kd) / 900, 0, 1); kd = 0; ref.kickHold = 0; pw.style.clipPath = 'inset(100% 0 0 0)'; if (!G.paused && !panelOpen) refKick(p); };
-  $('bK').addEventListener('pointerup', kup); $('bK').addEventListener('pointercancel', kup); $('bK').addEventListener('pointerleave', kup);
-  setInterval(() => { if (kd) { const p = clamp((performance.now() - kd) / 900, 0, 1); pw.style.clipPath = `inset(${100 - p * 100}% 0 0 0)`; } }, 30);
-  tap('bH', () => { if (!G.paused && !panelOpen) refHold(); });
   tap('bY', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'Y') : msg('真ん中の輪に選手を入れてください', 1.6); } });
   tap('bR', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'R') : msg('真ん中の輪に選手を入れてください', 1.6); } });
   tap('bV', () => { G.view = G.view === 1 ? 3 : 1; });
@@ -969,15 +995,13 @@ let curTarget = null;
     input.keys[e.code] = true;
     if (e.repeat) return;
     if (e.code === 'KeyF') onWhistle();
-    if (e.code === 'Space' && !G.paused && !panelOpen) { kd = performance.now(); }
-    if (e.code === 'KeyE' && !G.paused && !panelOpen) refHold();
     if (e.code === 'KeyY') $('bY').dispatchEvent(new PointerEvent('pointerdown'));
     if (e.code === 'KeyR') $('bR').dispatchEvent(new PointerEvent('pointerdown'));
     if (e.code === 'KeyV') G.view = G.view === 1 ? 3 : 1;
     if (e.code === 'KeyT') openAdd();
   });
-  addEventListener('keyup', e => { input.keys[e.code] = false; if (e.code === 'Space') kup(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && !G.paused && G.phase !== 'title' && G.phase !== 'over') { G.paused = true; $('pause').hidden = false; } });
+  addEventListener('keyup', e => { input.keys[e.code] = false; });
+  document.addEventListener('visibilitychange', () => { input.mx = input.mz = 0; if (document.hidden && !G.paused && G.phase !== 'title' && G.phase !== 'over') { G.paused = true; $('pause').hidden = false; } });
 }
 let addN = 3;
 function openAdd() {
@@ -1326,7 +1350,6 @@ function tick() {
   const ex = clamp(G.excite, 0, 1);
   crowdU.uJump.value = lerp(crowdU.uJump.value, 0.04 + ex * 0.35, 0.05);
   crowdU.uAng.value = clamp(G.crowdAnger / 100, 0, 1);
-  if (AC && booG) { booG.gain.value = lerp(booG.gain.value, clamp((G.crowdAnger - 25) / 75, 0, 1) * 0.5, 0.03); }
   if (!NR || (perf | 0) % 20 === 0) renderer.render(scene, cam);
 }
 function step(dt) {
@@ -1349,6 +1372,7 @@ function step(dt) {
   else { ref.vel.x += clamp(tvx - ref.vel.x, -acc, acc); ref.vel.z += clamp(tvz - ref.vel.z, -acc, acc); }
   ref.pos.addScaledVector(ref.vel, dt);
   ref.pos.x = clamp(ref.pos.x, -HW - 3, HW + 3); ref.pos.z = clamp(ref.pos.z, -HL - 3, HL + 3);
+  if (ref.touchCd > 0) ref.touchCd -= dt;
   if (ref.cardT > 0) ref.cardT -= dt; if (ref.kickAnim > 0) ref.kickAnim -= dt;
   if (input.keys.Space && ref.kickHold === 0 && !G.kd) { }
   // 反則の予定
@@ -1361,12 +1385,19 @@ function step(dt) {
       if (s.catch) { ball.owner = s.p; s.p.gkHold = true; s.p.holdT = 1.6; ball.last = s.p; msg('キャッチ！', 1.2); }
       else { ball.vel.z *= -0.35; ball.vel.x = rnd(-6, 6); ball.vel.y = rnd(1, 4); ball.last = s.p; sKick(ball.pos, 1); msg('セーブ！', 1.2); }
       if (G.phase === 'pkshot') setPhase('live');
-      G.excite = 1; sCheer(0.6);
+      G.excite = 1; CR('save');
     }
   }
   if (G.phase === 'pkshot' && Math.hypot(ball.vel.x, ball.vel.z) < 1.5) setPhase('live');
   updatePlayers(dt);
   updateBall(dt);
+  {
+    const dG = Math.min(Math.hypot(ball.pos.x, ball.pos.z - HL), Math.hypot(ball.pos.x, ball.pos.z + HL));
+    let ex = clamp(1 - dG / 26, 0, 1) * (G.phase === 'live' ? 1 : 0.25);
+    if (ball.held) ex = Math.max(ex, 0.3);
+    ex = Math.max(ex * 0.85, G.excite * 0.7);
+    if (crowd) crowd.update(dt, ex, G.crowdAnger);
+  }
   animateRef(dt);
   // リスタートの準備
   if (G.phase === 'restart' && G.restart) {
@@ -1417,9 +1448,6 @@ function step(dt) {
     tg.innerHTML = pName(curTarget) + (curTarget.yellow ? ' <span style="color:#ffd21f">■</span>' : '');
   } else { ringM.visible = false; $('tgt').style.opacity = 0; }
   // ボタン表示
-  $('bH').textContent = ball.held ? '投げる' : '持つ';
-  $('bK').classList.toggle('on', refNearBall(1.3) || ball.held);
-  $('bH').classList.toggle('on', refNearBall(1.4) || ball.held);
   drawHUD();
   saveT += dt; if (saveT > 5) { saveT = 0; save(); }
 }
