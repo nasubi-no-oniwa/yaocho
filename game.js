@@ -1,6 +1,6 @@
 import { THREE, GLTFLoader } from './lib.js';
-import { makeCrowd } from './crowd.js';
-import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js';
+import { makeCrowd } from './crowd.js?v=20261122h';
+import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122h';
 
 // ================= 基本 =================
 const $ = id => document.getElementById(id);
@@ -294,6 +294,11 @@ window.G = G; G.st = { shot: 0, tackle: 0, foul: 0, save: 0, pass: 0 };
 const ball = { pos: V3(0, BR, 0), vel: V3(), owner: null, held: false, last: null, lastKick: null, kickCd: 0, mesh: null, spin: V3() };
 const ref = { downT: 0, slideT: 0, slideRec: 0, slideDir: 0, slideHit: new Set(), touchCd: 0, pos: V3(0, 0, -4), vel: V3(), yaw: 0, pitch: -0.12, body: null, cardT: 0, cardCol: null, hurtT: 0, kickHold: 0 };
 const throwns = [];
+const dusts = [];
+const dustTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.5, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); return t; })();
+const dustMat = new THREE.SpriteMaterial({ map: dustTex, color: '#cdbf9f', transparent: true, opacity: 0.6, depthWrite: false });
+function dust(x, z) { if (dusts.length > 60) return; const sp = new THREE.Sprite(dustMat.clone()); sp.position.set(x, 0.15, z); sp.scale.setScalar(0.3); scene.add(sp); dusts.push({ sp, t: 0, vy: rnd(0.4, 1.0) }); }
+function updateDust(dt) { for (let i = dusts.length - 1; i >= 0; i--) { const d = dusts[i]; d.t += dt; d.sp.position.y += d.vy * dt; d.sp.scale.setScalar(0.3 + d.t * 1.4); d.sp.material.opacity = Math.max(0, 0.55 - d.t * 0.7); if (d.t > 0.8) { scene.remove(d.sp); d.sp.material.dispose(); dusts.splice(i, 1); } } }
 window.__ref = ref; window.__ball = ball;
 
 // ================= 音 =================
@@ -312,6 +317,13 @@ function sWhistle(long = false) {
   const trem = AC.createOscillator(); trem.frequency.value = 28; const tg = AC.createGain(); tg.gain.value = 0.12; trem.connect(tg); tg.connect(g.gain);
   for (const f of [2950, 3120]) { const o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.connect(g); o.start(t); o.stop(t + d); }
   trem.start(t); trem.stop(t + d); g.connect(master);
+}
+function sSlide() {
+  if (!AC) return;
+  const t = AC.currentTime, n = Math.floor(AC.sampleRate * 0.6), b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 1.5);
+  const s = AC.createBufferSource(); s.buffer = b; const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.6;
+  const g = AC.createGain(); g.gain.value = 0.35; s.connect(f); f.connect(g); g.connect(master); s.start(t);
 }
 function sKick(pos, power = 1) {
   if (!AC) return;
@@ -706,15 +718,15 @@ function scheduleRough() {
   G.roughSched = arr.sort((a, b) => a - b);
 }
 function tackle(t, v) {
-  t.tackCd = rnd(2.0, 3.6);
-  if (Math.random() < 0.4 && !G.violentNext) return; // つめるだけ
+  t.tackCd = rnd(1.2, 2.4);
+  if (Math.random() < 0.18 && !G.violentNext) return; // つめるだけ
   if (!canMove(t) || !canMove(v)) return;
   G.st.tackle++;
   // 倒れたふり（ダイブ）
   if (!G.violentNext && Math.random() < 0.08) { doDive(v, t); return; }
   let kind;
   if (G.violentNext) { kind = Math.random() < 0.6 ? 'drop' : 'slide'; }
-  else { const r = Math.random(); kind = r < 0.2 ? 'clean' : r < 0.45 ? 'drop' : r < 0.75 ? 'slide' : 'pull'; }
+  else { const r = Math.random(); kind = r < 0.13 ? 'clean' : r < 0.43 ? 'drop' : r < 0.75 ? 'slide' : 'pull'; }
   tmpV.subVectors(v.pos, t.pos).setY(0); const dl = tmpV.length() || 1; tmpV.divideScalar(dl);
   const dir = tmpV.clone();
   if (kind === 'clean') {
@@ -742,7 +754,7 @@ function tackle(t, v) {
   if (kind === 'drop') msg(`<span style="color:#ff8a8a">${T('dropkick', pName(t))}</span>`, 1.8);
   else if (sev === 'red') msg(`<span style="color:#ff8a8a">${T('danger')}</span>`, 1.6);
   else if (kind === 'pull' && sev === 'yellow') msg(T('pull', pName(t)), 1.4);
-  if (sev !== 'foul' && Math.random() < 0.5) G.retal.push({ team: v.team, target: t, at: G.clock + rnd(12, 35) });
+  if (Math.random() < (sev !== 'foul' ? 0.85 : 0.35)) G.retal.push({ team: v.team, target: t, at: G.clock + rnd(12, 35) });
 }
 function addFoul(t, v, sev) {
   const spot = v.pos.clone();
@@ -750,7 +762,7 @@ function addFoul(t, v, sev) {
   G.offenses.push({ p: t, sev, real: performance.now() });
   for (const m of nearest(active(v.team).filter(x => x !== v), spot, 2)) { m.appeal = 1.4; }
   if (sev !== 'foul') CR('foul');
-  if (sev === 'red') { G.excite = 1; G.crowdAnger += 10; v.team.anger += 12; if (v.team.anger > 45 && !G.brawl && Math.random() < 0.3) startBrawl(spot); }
+  if (sev === 'red') { G.excite = 1; G.crowdAnger += 10; v.team.anger += 12; if (v.team.anger > 28 && !G.brawl && Math.random() < 0.55) startBrawl(spot); }
 }
 function doDive(v, t) {
   ball.owner = null; ball.vel.set(rnd(-2, 2), 0.3, rnd(-2, 2)); ball.last = v;
@@ -766,6 +778,28 @@ function foulFall(v, sev, o = {}) {
   v.stT = sev === 'red' ? rnd(9, 14) : sev === 'yellow' ? rnd(3, 5) : rnd(1.4, 2.6);
   if (o.dir) v.vel.copy(o.dir).multiplyScalar(o.push || 1); else v.vel.multiplyScalar(0.3);
   if (sev === 'red') { v.injured = 1; if (Math.random() < 0.45) { v.needSub = true; } }
+}
+function scuffle() {
+  // ボールのない所の小競り合い（突き飛ばし・足かけ・ユニフォーム・頭突き）
+  const list = allActive().filter(p => p.state === 'play' && p.role !== 'GK' && canMove(p) && ball.owner !== p);
+  const near = nearest(list, ball.pos, 8);
+  for (const a of near) for (const b of near) {
+    if (a.team === b.team || a.pos.distanceTo(b.pos) > 6) continue;
+    tmpV.subVectors(b.pos, a.pos).setY(0); const d = tmpV.length() || 1; tmpV.divideScalar(d);
+    const dir = tmpV.clone(); const r = Math.random();
+    const kind = r < 0.4 ? 'shove' : r < 0.65 ? 'trip' : r < 0.85 ? 'pull' : 'headb';
+    const s2 = Math.random();
+    const sev = kind === 'headb' ? 'red' : s2 < 0.5 ? 'foul' : s2 < 0.92 ? 'yellow' : 'red';
+    a.pos.copy(b.pos).addScaledVector(dir, -0.9);
+    a.act = kind === 'shove' ? 'punch' : kind === 'trip' ? 'slide' : kind === 'pull' ? 'pull' : 'elbow'; a.actT = 0.6;
+    foulFall(b, sev, { push: kind === 'shove' ? 2.4 : kind === 'trip' ? 1.0 : kind === 'headb' ? 1.6 : 0.6, dir, back: kind !== 'trip' });
+    addFoul(a, b, sev);
+    msg(`<span style="color:#ff8a8a">${T(kind, pName(a))}</span>`, 1.6);
+    G.st.scuf = (G.st.scuf || 0) + 1;
+    if (Math.random() < 0.6) G.retal.push({ team: b.team, target: a, at: G.clock + rnd(4, 15) });
+    return true;
+  }
+  return false;
 }
 function offBallViolence() {
   const list = allActive().filter(p => p.state === 'play' && p.role !== 'GK');
@@ -1031,14 +1065,15 @@ function refSlide(mx, mz) {
   if (ref.slideT > 0 || ref.slideRec > 0 || G.phase === 'title' || G.phase === 'over') return;
   const fx = Math.sin(ref.yaw), fz = Math.cos(ref.yaw);
   let wx = fx * mz - fz * mx, wz = fz * mz + fx * mx; const l = Math.hypot(wx, wz) || 1; wx /= l; wz /= l;
-  const sp = Math.max(9.5, Math.hypot(ref.vel.x, ref.vel.z) + 2);
-  ref.vel.set(wx * sp, 0, wz * sp); ref.slideT = 0.6; ref.slideDir = Math.atan2(wx, wz); ref.slideHit = new Set();
-  sKick(ref.pos, 0.4);
+  const sp = Math.max(12.5, Math.hypot(ref.vel.x, ref.vel.z) + 4);
+  ref.vel.set(wx * sp, 0, wz * sp); ref.slideT = 0.75; ref.slideDir = Math.atan2(wx, wz); ref.slideHit = new Set();
+  sSlide();
 }
 function updateSlide(dt) {
   if (ref.slideT > 0) {
     ref.slideT -= dt;
-    ref.vel.multiplyScalar(Math.pow(0.2, dt));
+    ref.vel.multiplyScalar(Math.pow(0.3, dt));
+    if (Math.random() < 0.8) dust(ref.pos.x + rnd(-0.2, 0.2), ref.pos.z + rnd(-0.2, 0.2));
     for (const p of allActive()) {
       if (ref.slideHit.has(p) || p.state === 'down') continue;
       if (Math.hypot(p.pos.x - ref.pos.x, p.pos.z - ref.pos.z) < SLIDE_R) {
@@ -1051,7 +1086,7 @@ function updateSlide(dt) {
         if (ref.hurtT <= 0) { ref.hurtT = 0; }
       }
     }
-    if (ref.slideT <= 0) ref.slideRec = 0.8;
+    if (ref.slideT <= 0) ref.slideRec = 0.7;
   } else if (ref.slideRec > 0) { ref.slideRec -= dt; ref.vel.multiplyScalar(Math.pow(0.02, dt)); }
 }
 function refTouchKick(rs) {
@@ -1469,14 +1504,15 @@ function gkLogic(p, dt, tgt) {
       const cx = ball.pos.x + ball.vel.x * tt, cy = ball.pos.y + ball.vel.y * tt - 4.9 * tt * tt;
       tgt.set(clamp(cx, -GWH, GWH), 0, gz + t.dir * 0.4);
       const dx = cx - p.pos.x;
-      if (Math.abs(cx) < GWH + 0.3 && tt < 0.45 && !p.dived) {
+      if (Math.abs(cx) < GWH + 0.5 && tt < 0.6 && !p.dived) {
         p.dived = true; p.act = 'dive'; p.actT = 1.2; p.fallDir = Math.sign(dx) || 1;
-        const reach = 1.1 + 1.2 * t.str;
+        p.vel.x = clamp(dx / Math.max(tt, 0.15), -9, 9);
+        const reach = 1.6 + 1.2 * t.str;
         const hsp = Math.hypot(ball.vel.x, ball.vel.z);
         const fromRef = ball.last === 'ref';
-        const pSave = (fromRef ? 0.3 : 1) * clamp(0.5 + t.str * 0.35 - (hsp - 18) * 0.03 - (Math.abs(dx) > reach ? 0.6 : 0) - (cy > 1.8 ? 0.15 : 0), 0.03, 0.85);
+        const pSave = (fromRef ? 0.75 : 1) * clamp(0.62 + t.str * 0.3 - (hsp - 20) * 0.02 - (Math.abs(dx) > reach ? 0.35 : 0) - (cy > 2.0 ? 0.1 : 0), 0.1, 0.88);
         if (Math.random() < pSave) {
-          G.pendingSave = { p, at: performance.now() + tt * 1000 * 0.85, catch: hsp < 19 && Math.random() < 0.5 };
+          G.pendingSave = { p, at: tt * 0.85, catch: hsp < 21 && Math.random() < 0.55 };
         }
       }
     }
@@ -1497,7 +1533,7 @@ function pkShoot(p) {
     const dive = pick([-1, 1, side]);
     gk.act = 'dive'; gk.actT = 1.4; gk.fallDir = dive; gk.dived = true;
     gk.vel.x = dive * 5;
-    if (dive === side && Math.random() < 0.45 + def.str * 0.25) G.pendingSave = { p: gk, at: performance.now() + (d / 21) * 1000 * 0.85, catch: false };
+    if (dive === side && Math.random() < 0.45 + def.str * 0.25) G.pendingSave = { p: gk, at: (d / 21) * 0.85, catch: false };
   }
   G.pk = null; hint('');
 }
@@ -1556,6 +1592,15 @@ function animateRef(dt) {
   const fake = { body: B, pos: ref.pos, face: sliding ? ref.slideDir : ref.yaw, ph: ref.ph || 0, state: refDown ? 'down' : 'play', fallBack: true, stT: 1, act: refDown ? null : sliding ? 'slide' : ref.kickAnim > 0 ? 'kick' : null, actT: sliding ? 1 : ref.kickAnim, appeal: 0, role: 'REF' };
   if (ref.cardT > 0) { fake.act = null; }
   animate(fake, dt, sp); ref.ph = fake.ph;
+  if (ref.slideT > 0 || ref.slideRec > 0) {
+    const k = ref.slideT > 0 ? 1 : clamp(ref.slideRec / 0.7, 0, 1); // 1=寝ている, 0=立った
+    B.root.rotation.x = -1.2 * k; B.root.position.y = -0.14 * k;
+    B.pelvis.position.y = lerp(0.98, 0.9, k);
+    B.hipR.rotation.x = lerp(B.hipR.rotation.x, -0.2, k); B.kneeR.rotation.x = lerp(B.kneeR.rotation.x, 0.05, k);
+    B.hipL.rotation.x = lerp(B.hipL.rotation.x, 0.15, k); B.kneeL.rotation.x = lerp(B.kneeL.rotation.x, 1.5, k);
+    B.shL.rotation.x = lerp(B.shL.rotation.x, 0.9, k); B.shR.rotation.x = lerp(B.shR.rotation.x, 0.7, k); B.shL.rotation.z = 0.5 * k + 0.09; B.shR.rotation.z = -0.5 * k - 0.09;
+    B.spine.rotation.x = 0.35 * k; B.neck.rotation.x = 0.6 * k;
+  }
   if (ref.cardT > 0) { B.shR.rotation.x = -2.9; B.shR.rotation.z = -0.15; B.elR.rotation.x = -0.1; }
   if (!ref.cardMesh) { ref.cardMesh = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.105, 0.006), new THREE.MeshBasicMaterial({ color: '#d9262c' })); ref.cardMesh.position.set(0, -0.36, 0.03); B.elR.add(ref.cardMesh); }
   ref.cardMesh.visible = ref.cardT > 0; if (ref.cardT > 0) ref.cardMesh.material.color.set(ref.cardCol === 'Y' ? '#ffd21f' : '#e0242b');
@@ -1610,10 +1655,14 @@ function step(dt) {
   // 反則の予定
   if (G.phase === 'live' && G.roughSched.length && G.clock >= G.roughSched[0]) { G.roughSched.shift(); G.violentNext = true; G.violentWait = 9; }
   if (G.violentNext) { G.violentWait -= dt; if (G.violentWait <= 0 && G.phase === 'live') { if (offBallViolence()) G.violentNext = false; else G.violentWait = 2; } }
+  if (G.phase === 'live') { G.scufT = (G.scufT ?? rnd(8, 14)) - dt; if (G.scufT <= 0) G.scufT = scuffle() ? rnd(9, 17) : 2; }
   // GKのセーブ
-  if (G.pendingSave && performance.now() >= G.pendingSave.at) {
+  if (G.pendingSave) G.pendingSave.at -= dt;
+  if (G.pendingSave && G.pendingSave.at <= 0) {
     const s = G.pendingSave; G.pendingSave = null;
-    if (!ball.owner && !ball.held && ball.pos.distanceTo(s.p.pos) < 3.2) {
+    const gzS = -s.p.team.dir * HL;
+    if (!ball.owner && !ball.held && Math.abs(ball.pos.z) < HL + 0.3 && Math.abs(ball.pos.z - gzS) < 4 && Math.abs(ball.pos.x - s.p.pos.x) < 3.4 && ball.pos.y < 2.8) {
+      ball.pos.z = gzS + s.p.team.dir * 0.9;
       G.st.save++;
     if (s.catch) { ball.owner = s.p; s.p.gkHold = true; s.p.holdT = 1.6; ball.last = s.p; msg(T('catchB'), 1.2); }
       else { ball.vel.z *= -0.35; ball.vel.x = rnd(-6, 6); ball.vel.y = rnd(1, 4); ball.last = s.p; sKick(ball.pos, 1); msg(T('save'), 1.2); }
@@ -1624,6 +1673,7 @@ function step(dt) {
   if (G.phase === 'pkshot' && Math.hypot(ball.vel.x, ball.vel.z) < 1.5) setPhase('live');
   updatePlayers(dt);
   updateBall(dt);
+  updateDust(dt);
   {
     const dG = Math.min(Math.hypot(ball.pos.x, ball.pos.z - HL), Math.hypot(ball.pos.x, ball.pos.z + HL));
     let ex = clamp(1 - dG / 26, 0, 1) * (G.phase === 'live' ? 1 : 0.25);
@@ -1728,7 +1778,7 @@ function updateCam(dt) {
     tmpV.set(cam.position.x + fx * Math.cos(ref.pitch), cam.position.y + Math.sin(ref.pitch), cam.position.z + fz * Math.cos(ref.pitch));
     cam.lookAt(tmpV);
   } else {
-    const back = 4.6, up = 2.5;
+    const sl = (ref.slideT > 0 || ref.slideRec > 0.3) ? 1 : 0; const back = 4.6 + sl * 0.6, up = 2.5 - sl * 0.9;
     tmpV.set(ref.pos.x - fx * back, up - ref.pitch * 2.2, ref.pos.z - fz * back);
     cam.position.lerp(tmpV, clamp(dt * 10, 0, 1));
     tmpV2.set(ref.pos.x + fx * 3, 1.3 + ref.pitch * 4, ref.pos.z + fz * 3);
