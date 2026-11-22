@@ -285,7 +285,7 @@ const G = {
   phase: 'title', half: 1, clock: 0, added: null, paused: true,
   teams: [], players: [], mgrs: [], subs: [],
   restart: null, lastFoul: null, offenses: [], sentOff: [],
-  crowdAnger: 0, excite: 0, view: 1, roughSched: [], violentNext: false, violentWait: 0,
+  crowdAnger: 0, excite: 0, view: 3, roughSched: [], violentNext: false, violentWait: 0,
   goalPending: null, pk: null, invader: null, throwT: 0, brawl: null, kickoffTeam: 0, whistleCount: 0,
 };
 window.G = G; G.st = { shot: 0, tackle: 0, foul: 0, save: 0, pass: 0 };
@@ -742,7 +742,7 @@ function deserved(p, need) {
 function giveCard(p, col) {
   if (!p || p.gone || p.off) return;
   ref.cardT = 1.5; ref.cardCol = col;
-  const c = $('card'); c.style.background = col === 'Y' ? 'var(--yel)' : 'var(--red)'; c.classList.add('up'); setTimeout(() => c.classList.remove('up'), 1700);
+  const c = $('card'); c.style.background = col === 'Y' ? 'var(--yel)' : 'var(--red)'; if (G.view === 1) c.classList.add('up'); setTimeout(() => c.classList.remove('up'), 1700);
   sWhistle();
   if (p.role === 'MGR') {
     if (col === 'R') { p.off = true; p.state = 'leaving'; msg(`退席処分：${pName(p)}`, 3); G.sentOff.push({ p, t: G.clock, half: G.half }); }
@@ -1369,6 +1369,8 @@ function animateRef(dt) {
   if (ref.cardT > 0) { fake.act = null; }
   animate(fake, dt, sp); ref.ph = fake.ph;
   if (ref.cardT > 0) { B.shR.rotation.x = -2.9; B.shR.rotation.z = -0.15; B.elR.rotation.x = -0.1; }
+  if (!ref.cardMesh) { ref.cardMesh = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.105, 0.006), new THREE.MeshBasicMaterial({ color: '#d9262c' })); ref.cardMesh.position.set(0, -0.36, 0.03); B.elR.add(ref.cardMesh); }
+  ref.cardMesh.visible = ref.cardT > 0; if (ref.cardT > 0) ref.cardMesh.material.color.set(ref.cardCol === 'Y' ? '#ffd21f' : '#e0242b');
   if (ball.held) { B.shL.rotation.x = B.shR.rotation.x = -0.9; B.elL.rotation.x = B.elR.rotation.x = -0.9; }
   B.root.visible = G.view === 3;
 }
@@ -1569,7 +1571,7 @@ function begin(saved) {
   audioInit();
   if (saved) { clearMatch(); newMatch(saved); }
   $('title').hidden = true; $('ctl').hidden = false;
-  G.paused = false; G.view = 1;
+  G.paused = false; G.view = 3;
   placeForKickoff();
   G.kickoffTeam = saved ? saved.ko : (Math.random() < .5 ? 0 : 1);
   setRestart('kickoff', G.teams[G.half === 1 ? G.kickoffTeam : 1 - G.kickoffTeam]);
