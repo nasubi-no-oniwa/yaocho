@@ -462,6 +462,29 @@ function updateBall(dt) {
         if (ball.pos.y > GH - BR) { ball.pos.y = GH - BR; ball.vel.y = -Math.abs(ball.vel.y) * 0.2; }
       }
     }
+    // 選手の体に当たる（取れない速さのボールは跳ね返る）
+    for (const p of G.players) {
+      if (p.gone || p.off || (ball.lastKick === p && ball.kickCd > 0)) continue;
+      const down = p.state === 'down';
+      const R0 = down ? 0.55 : 0.33, H0 = down ? 0.45 : 1.85;
+      if (ball.pos.y > H0) continue;
+      // 1コマで通りぬけないよう、動いた線の上でいちばん近い点で調べる
+      const sx = ball.pos.x - prevX, sz = ball.pos.z - prevZ, sl = sx * sx + sz * sz;
+      const tt = sl > 1e-6 ? clamp(((p.pos.x - prevX) * sx + (p.pos.z - prevZ) * sz) / sl, 0, 1) : 1;
+      const cx = prevX + sx * tt, cz = prevZ + sz * tt;
+      let dx = cx - p.pos.x, dz = cz - p.pos.z, d = Math.hypot(dx, dz);
+      if (d < R0 + BR) {
+        if (d < 1e-4) { dx = -sx; dz = -sz; d = Math.hypot(dx, dz) || 1; }
+        const nx = dx / d, nz = dz / d, vn = (ball.vel.x - p.vel.x) * nx + (ball.vel.z - p.vel.z) * nz;
+        if (vn < 0) {
+          ball.vel.x -= 1.45 * vn * nx; ball.vel.z -= 1.45 * vn * nz; ball.vel.x *= 0.75; ball.vel.z *= 0.75;
+          ball.vel.x += rnd(-1, 1); ball.vel.z += rnd(-1, 1);
+          ball.last = p; ball.lastP = p; sKick(ball.pos, 0.5);
+          if (Math.abs(vn) > 16 && !down) { p.state = 'stumble'; p.stT = 0.6; }
+        }
+        ball.pos.x = p.pos.x + nx * (R0 + BR); ball.pos.z = p.pos.z + nz * (R0 + BR);
+      }
+    }
     // 審判の体に当たる：走っていれば、その向きと勢いで蹴る
     {
       const dx = ball.pos.x - ref.pos.x, dz = ball.pos.z - ref.pos.z, d = Math.hypot(dx, dz);
@@ -1372,7 +1395,7 @@ function updatePlayers(dt) {
       const dx = ball.pos.x - p.pos.x, dz = ball.pos.z - p.pos.z, d = Math.hypot(dx, dz);
       const reach = p.role === 'GK' && inBox(p.team, p.pos) ? 1.3 : (ball.intended === p ? 1.15 : 0.8);
       const hs = Math.hypot(ball.vel.x, ball.vel.z);
-      if (d < reach && ball.pos.y < (p.role === 'GK' ? 2.3 : 1.0) && !(ball.lastKick === p && ball.kickCd > 0) && (p.role === 'GK' ? (hs < 13 || (d < 0.8 && hs < 21 && ball.last !== 'ref')) : (hs < 22 && !(ball.last === 'ref' && hs > 14)))) {
+      if (d < reach && ball.pos.y < (p.role === 'GK' ? 2.3 : 1.0) && !(ball.lastKick === p && ball.kickCd > 0) && (p.role === 'GK' ? (hs < 13 || (d < 0.8 && hs < 21)) : hs < 22)) {
         if (ball.intended) { if (ball.intended.team === p.team) G.st.ok = (G.st.ok || 0) + 1; else G.st.cut = (G.st.cut || 0) + 1; }
         ball.owner = p; ball.last = p; ball.lastP = p; ball.intended = null; p.decideT = rnd(0.15, 0.45);
         if (p.role === 'GK' && inBox(p.team, p.pos)) { p.gkHold = true; p.holdT = rnd(1.2, 2.2); }
