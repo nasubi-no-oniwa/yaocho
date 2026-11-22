@@ -1,6 +1,6 @@
 import { THREE, GLTFLoader } from './lib.js';
-import { makeCrowd } from './crowd.js?v=20261122h';
-import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122h';
+import { makeCrowd } from './crowd.js?v=20261122i';
+import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122i';
 
 // ================= 基本 =================
 const $ = id => document.getElementById(id);

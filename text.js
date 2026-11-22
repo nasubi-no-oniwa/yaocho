@@ -20,7 +20,7 @@ const D = {
     pkKick: '主審がPKのボールを蹴った！ 試合はそのまま続く', refKO: '主審のキックオフ！', refRe: '主審のキックで試合再開！', hold: 'ボールを持った（もう一度で投げる）', aimTip: '真ん中の輪に選手を入れてください',
     addMsg: 'アディショナルタイムは {0}分', pushed: '{0} に突き飛ばされた！', catchB: 'キャッチ！', save: 'セーブ！', invader: '観客が乱入！', dropkick: '{0} のドロップキック！', pull: '{0} がユニフォームを引っぱった', punch: 'ボールのない所でパンチ！', stomp: '倒れた選手を踏みつけた！', revenge: '{0} の仕返し！', refDrop: '{0} が主審にドロップキック！', lastFall: '直前のプレー：{0} が倒れた（接触は？）', calm: '笛で全員が落ち着いた', shove: '{0} が相手を突き飛ばした！', trip: '{0} が足をかけた！', headb: '{0} の頭突き！', refSlide: '主審のスライディング！ {0} が倒れた',
     hPK: '笛でPK', hPKwait: 'みんなが笛を待っています（笛でPK）', hKO: '笛でキックオフ', hDrop: '笛で再開', hFK: '笛でフリーキック', hTime1: '時間です。笛 →「前半終了」で終われます', hTime2: '時間です。笛 →「試合終了」で終われます',
-    share: '【八百長蹴球】主審をしました\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+    share: '【八百長蹴球】主審をしました\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム #パラグアイ4部リーグ\n{5}', vs: 'vs',
   },
   en: {
     first: '1st', second: '2nd', lead: 'You are the referee.<br>One whistle changes the match.', go: 'To kick-off', cont: 'Continue',
@@ -42,7 +42,7 @@ const D = {
     pkKick: 'The referee kicked the penalty ball! Play goes on', refKO: "Referee's kick-off!", refRe: "Play restarts with the referee's kick!", hold: 'Holding the ball (again to throw)', aimTip: 'Put a player in the center ring',
     addMsg: 'Stoppage time: {0} min', pushed: 'Shoved by {0}!', catchB: 'Caught!', save: 'Saved!', invader: 'A fan runs onto the pitch!', dropkick: 'Drop kick by {0}!', pull: '{0} pulls a shirt', punch: 'A punch off the ball!', stomp: 'Stamping on a fallen player!', revenge: 'Revenge from {0}!', refDrop: '{0} drop-kicks the referee!', lastFall: 'Last play: {0} went down (any contact?)', calm: 'Your whistle calms everyone down', shove: '{0} shoves an opponent!', trip: '{0} trips an opponent!', headb: 'Headbutt by {0}!', refSlide: 'Referee slide tackle! {0} goes down',
     hPK: 'Whistle for the penalty', hPKwait: 'Everyone is waiting for your whistle', hKO: 'Whistle to kick off', hDrop: 'Whistle to restart', hFK: 'Whistle for the free kick', hTime1: 'Time is up. Whistle → "End 1st half"', hTime2: 'Time is up. Whistle → "End the match"',
-    share: '[Rigged Football] I refereed a match\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+    share: '[Rigged Football] I refereed a match\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム #パラグアイ4部リーグ\n{5}', vs: 'vs',
   },
   zh: {
     first: '上半場', second: '下半場', lead: '你是主裁判。<br>一聲哨響，比賽就變了。', go: '前往開球', cont: '繼續上次',
@@ -64,7 +64,7 @@ const D = {
     pkKick: '主裁判把點球的球踢走了！比賽直接繼續', refKO: '主裁判親自開球！', refRe: '主裁判一腳恢復比賽！', hold: '拿起球了（再按一次丟出去）', aimTip: '請把球員放進中間的圓圈',
     addMsg: '傷停補時 {0} 分鐘', pushed: '被 {0} 推倒了！', catchB: '接住了！', save: '撲救！', invader: '觀眾衝進場了！', dropkick: '{0} 飛踢！', pull: '{0} 拉扯球衣', punch: '在無球處揮拳！', stomp: '踩踏倒地的球員！', revenge: '{0} 報復！', refDrop: '{0} 飛踢主裁判！', lastFall: '剛才的動作：{0} 倒地（有接觸嗎？）', calm: '一聲哨響，全員冷靜下來', shove: '{0} 把對手推倒！', trip: '{0} 絆倒對手！', headb: '{0} 用頭撞人！', refSlide: '主裁判飛鏟！{0} 倒地',
     hPK: '吹哨踢點球', hPKwait: '大家都在等你吹哨（踢點球）', hKO: '吹哨開球', hDrop: '吹哨恢復比賽', hFK: '吹哨踢任意球', hTime1: '時間到了。吹哨 →「上半場結束」', hTime2: '時間到了。吹哨 →「比賽結束」',
-    share: '【假球足球】我當了一場主裁判\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+    share: '【假球足球】我當了一場主裁判\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム #パラグアイ4部リーグ\n{5}', vs: 'vs',
   },
   ko: {
     first: '전반', second: '후반', lead: '당신은 주심.<br>휘슬 하나로 경기가 바뀐다.', go: '킥오프로', cont: '이어서 하기',
@@ -86,7 +86,7 @@ const D = {
     pkKick: '주심이 PK 공을 차 버렸다! 경기는 그대로 계속', refKO: '주심의 킥오프!', refRe: '주심의 킥으로 경기 재개!', hold: '공을 들었다 (한 번 더 누르면 던진다)', aimTip: '가운데 원에 선수를 넣어 주세요',
     addMsg: '추가 시간 {0}분', pushed: '{0}에게 밀쳐졌다!', catchB: '캐치!', save: '선방!', invader: '관중 난입!', dropkick: '{0}의 드롭킥!', pull: '{0}이(가) 유니폼을 잡아당겼다', punch: '공 없는 곳에서 펀치!', stomp: '쓰러진 선수를 밟았다!', revenge: '{0}의 보복!', refDrop: '{0}이(가) 주심에게 드롭킥!', lastFall: '직전 플레이: {0} 쓰러짐 (접촉은?)', calm: '휘슬로 모두 진정했다', shove: '{0}이(가) 상대를 밀쳤다!', trip: '{0}이(가) 발을 걸었다!', headb: '{0}의 박치기!', refSlide: '주심의 슬라이딩! {0} 쓰러졌다',
     hPK: '휘슬로 PK', hPKwait: '모두가 휘슬을 기다린다 (휘슬로 PK)', hKO: '휘슬로 킥오프', hDrop: '휘슬로 재개', hFK: '휘슬로 프리킥', hTime1: '시간이 됐다. 휘슬 →「전반 종료」', hTime2: '시간이 됐다. 휘슬 →「경기 종료」',
-    share: '【승부조작 축구】주심을 봤다\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+    share: '【승부조작 축구】주심을 봤다\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム #パラグアイ4部リーグ\n{5}', vs: 'vs',
   },
 };
 // チーム名（[正式, 短い]）
