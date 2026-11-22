@@ -1040,11 +1040,15 @@ $('pRe').onclick = () => { $('pause').hidden = true; G.paused = false; };
 $('pEnd').onclick = () => { $('pause').hidden = true; save(); location.reload(); };
 $('hGo').onclick = () => { audioInit(); startSecondHalf(); };
 $('rAg').onclick = () => { location.reload(); };
+let QUOTE = {};
+fetch('https://ft-red-default-rtdb.asia-southeast1.firebasedatabase.app/xquote/g/yaocho.json').then(r => r.json()).then(d => { if (d && typeof d === 'object') QUOTE = d; }).catch(() => { });
+function quoteURL() { const u = QUOTE.ja || ''; return /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}\/status\/\d{5,25}$/.test(u) ? u : ''; }
 $('rX').onclick = () => {
   const [A, B] = G.teams; const n = G.sentOff.length;
   const t = `【八百長蹴球】主審をしました\n${A.n} ${A.score}-${B.score} ${B.n}\n${n ? `退場 ${n}人` : '退場者なし'}\n#八百長蹴球 #ブラウザゲーム\nhttps://nasubi-no-oniwa.com/yaocho/`;
   try { gtag('event', 'x_share', { game: 'yaocho' }); } catch (e) { }
-  open('https://x.com/intent/post?text=' + encodeURIComponent(t), '_blank');
+  const q = quoteURL();
+  const u = 'https://x.com/intent/post?text=' + encodeURIComponent(t) + (q ? '&url=' + encodeURIComponent(q) : ''); const w = window.open(u, '_blank'); if (!w) location.href = u;
 };
 
 // ================= 第4審判のボード =================
