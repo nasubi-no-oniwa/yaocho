@@ -287,12 +287,12 @@ const G = {
   phase: 'title', half: 1, clock: 0, added: null, paused: true,
   teams: [], players: [], mgrs: [], subs: [],
   restart: null, lastFoul: null, offenses: [], sentOff: [],
-  crowdAnger: 0, excite: 0, view: 3, roughSched: [], violentNext: false, violentWait: 0,
+  crowdAnger: 0, excite: 0, view: 3, roughSched: [], retal: [], violentNext: false, violentWait: 0,
   goalPending: null, pk: null, invader: null, throwT: 0, brawl: null, kickoffTeam: 0, whistleCount: 0,
 };
 window.G = G; G.st = { shot: 0, tackle: 0, foul: 0, save: 0, pass: 0 };
 const ball = { pos: V3(0, BR, 0), vel: V3(), owner: null, held: false, last: null, lastKick: null, kickCd: 0, mesh: null, spin: V3() };
-const ref = { slideT: 0, slideRec: 0, slideDir: 0, slideHit: new Set(), touchCd: 0, pos: V3(0, 0, -4), vel: V3(), yaw: 0, pitch: -0.12, body: null, cardT: 0, cardCol: null, hurtT: 0, kickHold: 0 };
+const ref = { downT: 0, slideT: 0, slideRec: 0, slideDir: 0, slideHit: new Set(), touchCd: 0, pos: V3(0, 0, -4), vel: V3(), yaw: 0, pitch: -0.12, body: null, cardT: 0, cardCol: null, hurtT: 0, kickHold: 0 };
 const throwns = [];
 window.__ref = ref; window.__ball = ball;
 
@@ -683,59 +683,113 @@ function scheduleRough() {
   G.roughSched = arr.sort((a, b) => a - b);
 }
 function tackle(t, v) {
-  t.tackCd = rnd(1.4, 2.8);
-  if (Math.random() < 0.45 && !G.violentNext) return; // つめるだけ
-  G.st.tackle++;
+  t.tackCd = rnd(2.0, 3.6);
+  if (Math.random() < 0.4 && !G.violentNext) return; // つめるだけ
   if (!canMove(t) || !canMove(v)) return;
-  let sev = 'clean';
-  const r = Math.random();
-  if (G.violentNext) { sev = 'red'; G.violentNext = false; }
-  else if (r < 0.05) sev = 'yellow';
-  else if (r < 0.17) sev = 'foul';
-  t.act = 'slide'; t.actT = 0.7; t.vel.multiplyScalar(0.5);
-  const winP = 0.42 + (t.team.str - v.team.str) * 0.4;
-  if (sev === 'clean') {
+  G.st.tackle++;
+  // 倒れたふり（ダイブ）
+  if (!G.violentNext && Math.random() < 0.08) { doDive(v, t); return; }
+  let kind;
+  if (G.violentNext) { kind = Math.random() < 0.6 ? 'drop' : 'slide'; }
+  else { const r = Math.random(); kind = r < 0.2 ? 'clean' : r < 0.45 ? 'drop' : r < 0.75 ? 'slide' : 'pull'; }
+  tmpV.subVectors(v.pos, t.pos).setY(0); const dl = tmpV.length() || 1; tmpV.divideScalar(dl);
+  const dir = tmpV.clone();
+  if (kind === 'clean') {
+    t.act = 'slide'; t.actT = 0.6; t.vel.multiplyScalar(0.5);
+    const winP = 0.5 + (t.team.str - v.team.str) * 0.4;
     if (Math.random() < winP) { ball.owner = null; tmpV.subVectors(ball.pos, t.pos).setY(0).normalize(); kickBall(t, tmpV, rnd(4, 9), 0.3); }
     else { t.state = 'stumble'; t.stT = 0.5; }
     return;
   }
-  // 反則
+  let sev; const r = Math.random();
+  if (G.violentNext) { sev = 'red'; G.violentNext = false; }
+  else if (kind === 'drop') sev = r < 0.5 ? 'red' : 'yellow';
+  else if (kind === 'slide') sev = r < 0.2 ? 'red' : r < 0.6 ? 'yellow' : 'foul';
+  else sev = r < 0.2 ? 'yellow' : 'foul';
+  // 動き
+  if (kind === 'drop') { t.act = 'drop'; t.actT = 0.8; t.vel.copy(dir).multiplyScalar(7); t.dropLand = true; }
+  else if (kind === 'slide') { t.act = 'slide'; t.actT = 0.75; t.vel.copy(dir).multiplyScalar(6); }
+  else { t.act = 'pull'; t.actT = 0.7; t.vel.multiplyScalar(0.3); }
   G.st.foul++;
   ball.owner = null;
-  ball.vel.set(rnd(-2, 2), 0.5, rnd(-2, 2)); ball.last = t;
-  foulFall(v, sev);
+  ball.vel.set(dir.x * rnd(1, 3) + rnd(-1.5, 1.5), 0.5, dir.z * rnd(1, 3) + rnd(-1.5, 1.5)); ball.last = t;
+  const behind = (Math.sin(v.face) * dir.x + Math.cos(v.face) * dir.z) > 0; // 後ろから来たか
+  foulFall(v, sev, { push: kind === 'drop' ? 3.6 : kind === 'slide' ? 1.6 : 0.6, dir, back: kind === 'pull' ? true : !behind });
+  addFoul(t, v, sev);
+  if (kind === 'drop') msg(`<span style="color:#ff8a8a">${T('dropkick', pName(t))}</span>`, 1.8);
+  else if (sev === 'red') msg(`<span style="color:#ff8a8a">${T('danger')}</span>`, 1.6);
+  else if (kind === 'pull' && sev === 'yellow') msg(T('pull', pName(t)), 1.4);
+  if (sev !== 'foul' && Math.random() < 0.5) G.retal.push({ team: v.team, target: t, at: G.clock + rnd(12, 35) });
+}
+function addFoul(t, v, sev) {
   const spot = v.pos.clone();
-  const pk = inBox(t.team, spot);
-  G.lastFoul = { by: t, on: v, team: v.team, spot, sev, pk, time: G.clock, half: G.half, real: performance.now() };
+  G.lastFoul = { by: t, on: v, team: v.team, spot, sev, pk: inBox(t.team, spot), time: G.clock, half: G.half, real: performance.now() };
   G.offenses.push({ p: t, sev, real: performance.now() });
-  // 倒された側の訴え
   for (const m of nearest(active(v.team).filter(x => x !== v), spot, 2)) { m.appeal = 1.4; }
   if (sev !== 'foul') CR('foul');
-  if (sev === 'red') { G.excite = 1; G.crowdAnger += 12; msg(`<span style="color:#ff8a8a">${T('danger')}</span>`, 1.6); }
+  if (sev === 'red') { G.excite = 1; G.crowdAnger += 10; v.team.anger += 12; if (v.team.anger > 45 && !G.brawl && Math.random() < 0.3) startBrawl(spot); }
 }
-function foulFall(v, sev) {
-  v.state = 'down'; v.fallDir = Math.random() < .5 ? 1 : -1;
+function doDive(v, t) {
+  ball.owner = null; ball.vel.set(rnd(-2, 2), 0.3, rnd(-2, 2)); ball.last = v;
+  v.state = 'down'; v.stT = rnd(1.4, 2.4); v.fallBack = Math.random() < 0.5; v.injured = 0;
+  v.act = 'dive2'; v.actT = 0.3;
+  const spot = v.pos.clone();
+  G.lastFoul = { by: t, on: v, team: v.team, spot, sev: 'dive', pk: inBox(t.team, spot), time: G.clock, half: G.half, real: performance.now() };
+  G.offenses.push({ p: v, sev: 'yellow', dive: true, real: performance.now() }); // 演技はイエローの対象
+  for (const m of nearest(active(v.team).filter(x => x !== v), spot, 2)) { m.appeal = 1.4; }
+}
+function foulFall(v, sev, o = {}) {
+  v.state = 'down'; v.fallDir = Math.random() < .5 ? 1 : -1; v.fallBack = o.back ?? (Math.random() < 0.5);
   v.stT = sev === 'red' ? rnd(9, 14) : sev === 'yellow' ? rnd(3, 5) : rnd(1.4, 2.6);
-  v.vel.multiplyScalar(0.3);
-  if (sev === 'red') { v.injured = 1; if (Math.random() < 0.5) { v.needSub = true; } }
+  if (o.dir) v.vel.copy(o.dir).multiplyScalar(o.push || 1); else v.vel.multiplyScalar(0.3);
+  if (sev === 'red') { v.injured = 1; if (Math.random() < 0.45) { v.needSub = true; } }
 }
 function offBallViolence() {
   const list = allActive().filter(p => p.state === 'play' && p.role !== 'GK');
-  const near = nearest(list, ball.pos, 6);
+  // 倒れている選手を踏む
+  const downs = allActive().filter(p => p.state === 'down');
+  for (const d of downs) for (const a of list) {
+    if (a.team !== d.team && a.pos.distanceTo(d.pos) < 5) {
+      a.act = 'stomp'; a.actT = 0.6; d.stT = Math.max(d.stT, rnd(8, 12)); d.injured = 1;
+      addFoul(a, d, 'red'); msg(`<span style="color:#ff8a8a">${T('stomp')}</span>`, 1.8);
+      return true;
+    }
+  }
+  const near = nearest(list, ball.pos, 7);
   for (const a of near) for (const b of near) {
     if (a.team !== b.team && a.pos.distanceTo(b.pos) < 4) {
-      a.act = 'elbow'; a.actT = 0.6;
-      foulFall(b, 'red');
-      G.lastFoul = { by: a, on: b, team: b.team, spot: b.pos.clone(), sev: 'red', pk: inBox(a.team, b.pos), time: G.clock, half: G.half, real: performance.now() };
-      G.offenses.push({ p: a, sev: 'red', real: performance.now() });
-      G.crowdAnger += 12; G.excite = 1;
-      msg(`<span style="color:#ff8a8a">${T('elbow')}</span>`, 1.8);
+      tmpV.subVectors(b.pos, a.pos).setY(0).normalize();
+      const punch = Math.random() < 0.6;
+      a.act = punch ? 'punch' : 'elbow'; a.actT = 0.6;
+      foulFall(b, 'red', { push: 1.2, dir: tmpV.clone(), back: true });
+      addFoul(a, b, 'red');
+      msg(`<span style="color:#ff8a8a">${T(punch ? 'punch' : 'elbow')}</span>`, 1.8);
       return true;
     }
   }
   return false;
 }
-
+function updateRetal() {
+  if (G.phase !== 'live' || !G.retal.length) return;
+  for (let i = G.retal.length - 1; i >= 0; i--) {
+    const R = G.retal[i]; if (G.clock < R.at) continue;
+    G.retal.splice(i, 1);
+    if (R.target.off || R.target.gone) continue;
+    const av = nearest(active(R.team).filter(p => p.role !== 'GK' && p.state === 'play'), R.target.pos, 1)[0];
+    if (!av) continue;
+    av.state = 'retal'; av.stT = 8; av.retalT = R.target;
+  }
+}
+function calmAll() {
+  // 笛：だれでも必ず落ち着く
+  G.brawl = null; G.retal = [];
+  for (const p of G.players) {
+    if (['brawl', 'protest', 'retal', 'attackRef'].includes(p.state)) { p.state = 'play'; p.freeze = 1.0; }
+    p.pushed = false; p.retalT = null; p.appeal = 0; if (p.act === 'push' || p.act === 'protest') p.act = null;
+  }
+  for (const m of G.mgrs) if (m.state === 'brawl') m.state = 'back';
+  for (const t of G.teams) t.anger *= 0.6;
+}
 // ---------- 抗議・怒り ----------
 function startProtest(p, dur = 3) { if (p.off || p.gone || p.state === 'down' || p.state === 'leaving') return; p.state = 'protest'; p.stT = dur; }
 function deserved(p, need) {
@@ -775,10 +829,11 @@ function giveCard(p, col) {
   save();
 }
 function startBrawl(at) {
-  const ps = nearest(allActive().filter(x => x.role !== 'GK' && x.state === 'play' || x.state === 'protest'), at, 6);
+  const ps = nearest(allActive().filter(x => x.role !== 'GK' && (x.state === 'play' || x.state === 'protest')), at, 7);
   if (ps.length < 4) return;
-  G.brawl = { t: 9, ps, at: at.clone() };
+  G.brawl = { t: 9, ps, at: at.clone(), refT: 1.5 };
   for (const p of ps) { p.state = 'brawl'; p.stT = 9; }
+  for (const m of G.mgrs) if (!m.off && m.state !== 'leaving' && m.state !== 'gone' && Math.random() < 0.7) { m.state = 'brawl'; m.home = m.home || m.pos.clone(); }
   msg(`<span style="color:#ff6b6b">${T('brawl')}</span> ${T('brawlSub')}`, 3);
   G.crowdAnger += 10; G.excite = 1;
 }
@@ -801,14 +856,15 @@ function closePanel() { $('dec').hidden = true; panelOpen = null; }
 function openWhistlePanel() {
   const [A, B] = G.teams;
   const lf = G.lastFoul && performance.now() - G.lastFoul.real < 6000 ? G.lastFoul : null;
+  const lfS = lf && lf.sev !== 'dive' ? lf : null;
   const ch = [];
   const add = (lab, sub, cls, fn) => ch.push({ label: lab, sub, cls, fn });
   for (const t of [A, B]) {
-    const sug = lf && lf.team === t;
-    add(`${T('fk')} ${tName(t)}`, sug && !lf.pk ? T('fromFoul') : T('fromBall'), sug && !lf.pk ? 'ok' : '', () => setRestart('fk', t, sug ? lf.spot : ball.pos));
+    const sug = lfS && lfS.team === t;
+    add(`${T('fk')} ${tName(t)}`, sug && !lfS.pk ? T('fromFoul') : T('fromBall'), sug && !lfS.pk ? 'ok' : '', () => setRestart('fk', t, sug ? lfS.spot : ball.pos));
   }
   for (const t of [A, B]) {
-    const sug = lf && lf.team === t && lf.pk;
+    const sug = lfS && lfS.team === t && lfS.pk;
     add(`${T('pk')} ${tName(t)}`, sug ? T('boxFoul') : '', sug ? 'ok' : '', () => setRestart('pk', t));
   }
   add(T('drop'), T('dropSub'), 'full', () => setRestart('drop', ball.last && ball.last !== 'ref' ? ball.last.team : A, ball.pos.clone()));
@@ -817,7 +873,8 @@ function openWhistlePanel() {
   add(G.half === 1 ? T('endH1') : T('endH2'), left > 0 ? T('left', Math.ceil(left / 60)) : T('timeUp'), 'full ' + (left > 0 ? 'warn' : 'ok'), () => endHalf());
   add(T('close'), T('closeSub'), 'full', () => { hint(T('hintPanel')); });
   let desc = T('stopped');
-  if (lf) desc = T('lastFoul', pName(lf.by), pName(lf.on)) + (lf.sev === 'red' ? `<br><b style="color:#ff6b6b">${T('sevR')}</b>` : lf.sev === 'yellow' ? `<br><b style="color:#ffd21f">${T('sevY')}</b>` : '');
+  if (lf && lf.sev === 'dive') desc = T('lastFall', pName(lf.on));
+  else if (lf) desc = T('lastFoul', pName(lf.by), pName(lf.on)) + (lf.sev === 'red' ? `<br><b style="color:#ff6b6b">${T('sevR')}</b>` : lf.sev === 'yellow' ? `<br><b style="color:#ffd21f">${T('sevY')}</b>` : '');
   openPanel(T('pi'), desc, ch);
 }
 function openOutPanel() {
@@ -916,7 +973,7 @@ function onWhistle() {
   audioInit();
   if (G.paused || panelOpen) return;
   G.whistleCount++;
-  if (G.brawl) { sWhistle(); for (const p of G.brawl.ps) if (p.state === 'brawl') { p.state = 'play'; p.freeze = 1.2; } G.brawl = null; msg(T('brawlStop'), 2); if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); } return; }
+  { const rough = G.brawl || G.players.some(p => ['brawl', 'retal', 'attackRef'].includes(p.state)); calmAll(); if (rough) { msg(T('calm'), 2); if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); } else sWhistle(); return; } }
   if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); }
   else if (G.phase === 'dead') { sWhistle(); openWhistlePanel(); }
   else if (G.phase === 'goal') { sWhistle(); openPanel(T('goalJ'), T('goalQ'), [{ label: T('accept'), cls: 'ok', fn: confirmGoal }, { label: T('cancel'), sub: T('noReason'), cls: 'warn', fn: cancelGoal }]); }
@@ -1194,7 +1251,7 @@ function updatePlayers(dt) {
     if (p.gone) continue;
     if (p.freeze > 0) p.freeze -= dt;
     p.stT -= dt; p.actT -= dt; p.appeal -= dt; p.tackCd -= dt;
-    if (p.actT <= 0) p.act = null;
+    if (p.actT <= 0) { if (p.act === 'drop' && p.dropLand) { p.dropLand = false; if (p.state === 'play' || p.state === 'brawl') { p.state = 'down'; p.stT = rnd(0.9, 1.4); p.fallBack = true; p.injured = 0; } } p.act = null; }
     const tgt = tmpV3; let run = 0.55, hasTgt = true;
     // 状態
     if (p.state === 'leaving') {
@@ -1209,6 +1266,34 @@ function updatePlayers(dt) {
     } else if (p.state === 'brawl') {
       const b = G.brawl; if (!b || p.stT <= 0) { p.state = 'play'; hasTgt = false; }
       else { tgt.copy(b.at); tgt.x += Math.sin(p.ph * 3) * 1.2; tgt.z += Math.cos(p.ph * 2.3) * 1.2; run = 0.4; p.act = 'push'; p.actT = 0.3; }
+    } else if (p.state === 'retal') {
+      const tg = p.retalT;
+      if (!tg || tg.off || tg.gone || p.stT <= 0) { p.state = 'play'; p.retalT = null; hasTgt = false; }
+      else {
+        tgt.copy(tg.pos); run = 1;
+        if (p.pos.distanceTo(tg.pos) < 1.3 && tg.state !== 'down') {
+          tmpV.subVectors(tg.pos, p.pos).setY(0).normalize();
+          const drop = Math.random() < 0.5; p.act = drop ? 'drop' : 'punch'; p.actT = drop ? 0.8 : 0.6; if (drop) { p.dropLand = true; p.vel.copy(tmpV).multiplyScalar(6); }
+          if (ball.owner === tg) ball.owner = null;
+          foulFall(tg, 'red', { push: drop ? 3.4 : 1.2, dir: tmpV.clone(), back: Math.random() < 0.5 });
+          addFoul(p, tg, 'red'); msg(`<span style="color:#ff8a8a">${T('revenge', pName(p))}</span>`, 2.2);
+          p.state = 'play'; p.retalT = null;
+        }
+      }
+    } else if (p.state === 'attackRef') {
+      if (p.stT <= 0) { p.state = 'play'; hasTgt = false; }
+      else {
+        tgt.copy(ref.pos); run = 1;
+        if (p.pos.distanceTo(ref.pos) < 1.4) {
+          tmpV.subVectors(ref.pos, p.pos).setY(0).normalize();
+          p.act = 'drop'; p.actT = 0.8; p.dropLand = true; p.vel.copy(tmpV).multiplyScalar(6);
+          ref.vel.addScaledVector(tmpV, 6.5); ref.downT = 1.6; ref.hurtT = 0;
+          $('hurt').style.opacity = 1; setTimeout(() => $('hurt').style.opacity = 0, 500); flash(0.25);
+          G.offenses.push({ p, sev: 'red', real: performance.now() });
+          msg(`<span style="color:#ff6b6b">${T('refDrop', pName(p))}</span>`, 2.6); CR('foul'); G.crowdAnger += 8; G.excite = 1;
+          p.state = 'play';
+        }
+      }
     } else if (p.state === 'protest') {
       tgt.copy(ref.pos); tmpV.subVectors(p.pos, ref.pos).setY(0); const d = tmpV.length() || 1;
       tgt.addScaledVector(tmpV.divideScalar(d), 1.6); run = 0.7;
@@ -1264,7 +1349,7 @@ function updatePlayers(dt) {
       }
     } else { homeSpot(p, tgt); run = 0.3; }
     // 動き
-    if (hasTgt && (canMove(p) || p.state === 'brawl' || p.state === 'leaving') && !(p.freeze > 0)) {
+    if (hasTgt && (canMove(p) || ['brawl', 'leaving', 'retal', 'attackRef'].includes(p.state)) && !(p.freeze > 0)) {
       tmpV.subVectors(tgt, p.pos).setY(0);
       const d = tmpV.length();
       const ms = maxSpeed(p) * run * (d < 3 ? clamp(d / 3, 0.15, 1) : 1);
@@ -1302,6 +1387,15 @@ function updatePlayers(dt) {
   }
   // 監督
   for (const m of G.mgrs) {
+    if (m.state === 'brawl' || m.state === 'back') {
+      const tg = m.state === 'brawl' && G.brawl ? G.brawl.at : (m.home || m.pos);
+      tmpV.subVectors(tg, m.pos).setY(0); const d = tmpV.length();
+      if (d > 0.6) { m.pos.addScaledVector(tmpV, Math.min(1, 6.5 * dt / d)); m.face = Math.atan2(tmpV.x, tmpV.z); }
+      else if (m.state === 'back') { m.state = 'stand'; }
+      if (m.state === 'brawl' && !G.brawl) m.state = 'back';
+      m.act = m.state === 'brawl' && d < 2 ? 'push' : null; m.actT = 1;
+      animate(m, dt, d > 0.6 ? 6.5 : 0); continue;
+    }
     if (m.state === 'leaving') { m.pos.x -= dt * 2; if (m.pos.x < -(HW + 9)) { m.body.root.visible = false; m.state = 'gone'; } }
     const ang = m.team.anger > 40;
     m.face = Math.PI / 2 + (ang ? Math.sin(perf * 0.002) * 0.3 : 0);
@@ -1400,12 +1494,20 @@ function animate(p, dt, sp) {
   const st = p.state, act = p.act;
   if (st === 'down') {
     const f = clamp(1 - Math.max(0, p.stT - (p.stT0 || 0)) , 0, 1);
-    tiltX = -Math.PI / 2 * 0.98; lift = 0.13; pelY = 0.98; hipL = -0.2; hipR = p.injured ? -1.6 : -0.3; knL = 0.3; knR = p.injured ? 2.2 : 0.4;
+    tiltX = (p.fallBack ? -1 : 1) * Math.PI / 2 * 0.98; lift = 0.13; pelY = 0.98; hipL = -0.2; hipR = p.injured ? -1.6 : -0.3; knL = 0.3; knR = p.injured ? 2.2 : 0.4;
     shL = -0.4; shR = -0.4 + (p.injured ? Math.sin(t * 5) * 0.4 - 1.2 : 0); elL = elR = -1.2;
     tiltZ = p.injured ? Math.sin(t * 3) * 0.25 : 0;
   } else if (st === 'stumble') { lean = 0.5; }
   if (act === 'kick') { const k = clamp(p.actT / 0.35, 0, 1); hipR = -1.4 * Math.sin(k * Math.PI) + 0.4 * (k > 0.6 ? 1 : 0); knR = 0.2 + k * 0.9; shL = -0.6; shR = 0.5; lean = -0.15; }
   if (act === 'slide') { pelY = 0.45; lean = -0.7; hipR = -1.5; knR = 0.1; hipL = -0.6; knL = 1.4; shL = -0.4; shR = 0.6; }
+  if (act === 'drop') {
+    const k = clamp(1 - p.actT / 0.8, 0, 1);
+    tiltX = -1.3 * Math.min(1, k * 3); lift = 0.15 + Math.sin(k * Math.PI) * 0.75; pelY = 0.98;
+    hipL = hipR = -1.45; knL = knR = 0.05; shL = shR = -0.6; shZL = 0.9; shZR = -0.9; elL = elR = -0.3;
+  }
+  if (act === 'pull') { shR = -1.55; elR = -0.15; shL = -0.9; elL = -0.6; lean = -0.25; }
+  if (act === 'punch') { const k = clamp(1 - p.actT / 0.6, 0, 1); shR = -1.5; elR = k < 0.4 ? -1.6 : -0.05; shL = -0.6; elL = -1.6; lean = 0.2; }
+  if (act === 'stomp') { const k = clamp(1 - p.actT / 0.6, 0, 1); hipR = k < 0.5 ? -1.2 : -0.2; knR = k < 0.5 ? 1.4 : 0.1; shL = shR = -0.4; lean = 0.15; }
   if (act === 'elbow') { shR = -0.4; tiltZ = 0; elR = -2.3; B.spine.rotation.y = 0.9; }
   if (act === 'push' || st === 'brawl') { const k = Math.sin(t * 12) * 0.5 + 0.5; shL = shR = -1.3 - 0.2 * k; elL = elR = -0.2 * k; lean = 0.25; }
   if (act === 'protest' || st === 'protest' || p.appeal > 0 || (p.role === 'MGR' && act === 'protest')) { shL = -2.5 + Math.sin(t * 9) * 0.35; shR = -2.3 + Math.cos(t * 8) * 0.35; elL = elR = -0.5; shZL = 0.35; shZR = -0.35; }
@@ -1424,8 +1526,8 @@ function animate(p, dt, sp) {
 }
 function animateRef(dt) {
   const B = ref.body; const sp = Math.hypot(ref.vel.x, ref.vel.z);
-  const sliding = ref.slideT > 0 || ref.slideRec > 0.4;
-  const fake = { body: B, pos: ref.pos, face: sliding ? ref.slideDir : ref.yaw, ph: ref.ph || 0, state: 'play', act: sliding ? 'slide' : ref.kickAnim > 0 ? 'kick' : null, actT: sliding ? 1 : ref.kickAnim, appeal: 0, role: 'REF' };
+  const sliding = ref.slideT > 0 || ref.slideRec > 0.4; const refDown = ref.downT > 0;
+  const fake = { body: B, pos: ref.pos, face: sliding ? ref.slideDir : ref.yaw, ph: ref.ph || 0, state: refDown ? 'down' : 'play', fallBack: true, stT: 1, act: refDown ? null : sliding ? 'slide' : ref.kickAnim > 0 ? 'kick' : null, actT: sliding ? 1 : ref.kickAnim, appeal: 0, role: 'REF' };
   if (ref.cardT > 0) { fake.act = null; }
   animate(fake, dt, sp); ref.ph = fake.ph;
   if (ref.cardT > 0) { B.shR.rotation.x = -2.9; B.shR.rotation.z = -0.15; B.elR.rotation.x = -0.1; }
@@ -1470,7 +1572,8 @@ function step(dt) {
   const m = Math.min(1, Math.hypot(mx, mz)), sp = 9.6 * m;
   const acc = 30 * dt;
   const tvx = m > 0.02 ? wx / Math.hypot(wx, wz) * sp : 0, tvz = m > 0.02 ? wz / Math.hypot(wx, wz) * sp : 0;
-  if (ref.slideT > 0 || ref.slideRec > 0) updateSlide(dt);
+  if (ref.downT > 0) { ref.downT -= dt; ref.vel.multiplyScalar(Math.pow(0.05, dt)); }
+  else if (ref.slideT > 0 || ref.slideRec > 0) updateSlide(dt);
   else if (ref.hurtT > 0) { ref.hurtT -= dt; ref.vel.multiplyScalar(Math.pow(0.08, dt)); }
   else { ref.vel.x += clamp(tvx - ref.vel.x, -acc, acc); ref.vel.z += clamp(tvz - ref.vel.z, -acc, acc); }
   ref.pos.addScaledVector(ref.vel, dt);
@@ -1542,7 +1645,18 @@ function step(dt) {
   // 乱入
   if (!G.invader && G.crowdAnger > 85 && Math.random() < dt * 0.02 && !G.invDone) spawnInvader();
   if (G.invader) updateInvader(dt);
-  if (G.brawl) { G.brawl.t -= dt; if (G.brawl.t <= 0) G.brawl = null; }
+  updateRetal();
+  if (G.brawl) {
+    G.brawl.t -= dt; G.brawl.refT -= dt;
+    if (G.brawl.refT <= 0) {
+      G.brawl.refT = rnd(1.2, 2.5);
+      if (ref.pos.distanceTo(G.brawl.at) < 10 && Math.random() < 0.45) {
+        const c = G.brawl.ps.filter(p => p.state === 'brawl'); const a = c[(Math.random() * c.length) | 0];
+        if (a) { a.state = 'attackRef'; a.stT = 5; }
+      }
+    }
+    if (G.brawl.t <= 0) { for (const p of G.brawl.ps) if (p.state === 'brawl') p.state = 'play'; G.brawl = null; for (const m of G.mgrs) if (m.state === 'brawl') m.state = 'back'; }
+  }
   // カードの的
   curTarget = cardTarget();
   if (curTarget) {
@@ -1583,7 +1697,7 @@ function updateCam(dt) {
   const bob = G.view === 1 ? Math.sin(perf * 0.012) * 0.03 * clamp(Math.hypot(ref.vel.x, ref.vel.z) / 9, 0, 1) : 0;
   const fx = Math.sin(ref.yaw), fz = Math.cos(ref.yaw);
   if (G.view === 1) {
-    const low = (ref.slideT > 0 || ref.slideRec > 0.3) ? 0.85 : 0;
+    const low = ref.downT > 0 ? 1.4 : (ref.slideT > 0 || ref.slideRec > 0.3) ? 0.85 : 0;
     cam.position.set(ref.pos.x + fx * 0.12, 1.72 + bob - low, ref.pos.z + fz * 0.12);
     tmpV.set(cam.position.x + fx * Math.cos(ref.pitch), cam.position.y + Math.sin(ref.pitch), cam.position.z + fz * Math.cos(ref.pitch));
     cam.lookAt(tmpV);
