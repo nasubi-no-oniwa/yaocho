@@ -292,7 +292,7 @@ const G = {
 };
 window.G = G; G.st = { shot: 0, tackle: 0, foul: 0, save: 0, pass: 0 };
 const ball = { pos: V3(0, BR, 0), vel: V3(), owner: null, held: false, last: null, lastKick: null, kickCd: 0, mesh: null, spin: V3() };
-const ref = { touchCd: 0, pos: V3(0, 0, -4), vel: V3(), yaw: 0, pitch: -0.12, body: null, cardT: 0, cardCol: null, hurtT: 0, kickHold: 0 };
+const ref = { slideT: 0, slideRec: 0, slideDir: 0, slideHit: new Set(), touchCd: 0, pos: V3(0, 0, -4), vel: V3(), yaw: 0, pitch: -0.12, body: null, cardT: 0, cardCol: null, hurtT: 0, kickHold: 0 };
 const throwns = [];
 window.__ref = ref; window.__ball = ball;
 
@@ -946,6 +946,34 @@ function refKick(power) {
   if (was) { was.team.anger += 8; startProtest(was, 1.5); }
   if (G.phase === 'restart' && G.restart && G.restart.type === 'pk') { G.restart.team.anger += 10; startProtest(G.restart.taker, 3); msg(T('pkKick'), 2); }
 }
+const SLIDE_R = 1.4;
+function refSlide(mx, mz) {
+  if (ref.slideT > 0 || ref.slideRec > 0 || G.phase === 'title' || G.phase === 'over') return;
+  const fx = Math.sin(ref.yaw), fz = Math.cos(ref.yaw);
+  let wx = fx * mz - fz * mx, wz = fz * mz + fx * mx; const l = Math.hypot(wx, wz) || 1; wx /= l; wz /= l;
+  const sp = Math.max(9.5, Math.hypot(ref.vel.x, ref.vel.z) + 2);
+  ref.vel.set(wx * sp, 0, wz * sp); ref.slideT = 0.6; ref.slideDir = Math.atan2(wx, wz); ref.slideHit = new Set();
+  sKick(ref.pos, 0.4);
+}
+function updateSlide(dt) {
+  if (ref.slideT > 0) {
+    ref.slideT -= dt;
+    ref.vel.multiplyScalar(Math.pow(0.2, dt));
+    for (const p of allActive()) {
+      if (ref.slideHit.has(p) || p.state === 'down') continue;
+      if (Math.hypot(p.pos.x - ref.pos.x, p.pos.z - ref.pos.z) < SLIDE_R) {
+        ref.slideHit.add(p);
+        if (ball.owner === p) { ball.owner = null; ball.vel.set(ref.vel.x * 0.6 + rnd(-2, 2), 1.2, ref.vel.z * 0.6 + rnd(-2, 2)); ball.last = 'ref'; ball.lastKick = 'ref'; ball.kickCd = 0.4; }
+        p.state = 'down'; p.fallDir = Math.random() < .5 ? 1 : -1; p.stT = rnd(2.2, 3.5); p.vel.set(ref.vel.x * 0.4, 0, ref.vel.z * 0.4);
+        p.team.anger += 15; G.crowdAnger += 10; G.excite = 1;
+        for (const m of nearest(active(p.team).filter(x => x !== p), p.pos, 2)) startProtest(m, 3);
+        msg(`<span style="color:#ff8a8a">${T('refSlide', pName(p))}</span>`, 2.2); CR('foul');
+        if (ref.hurtT <= 0) { ref.hurtT = 0; }
+      }
+    }
+    if (ref.slideT <= 0) ref.slideRec = 0.8;
+  } else if (ref.slideRec > 0) { ref.slideRec -= dt; ref.vel.multiplyScalar(Math.pow(0.02, dt)); }
+}
 function refTouchKick(rs) {
   // 走る向き（動いていなければ見ている向き）に、速さに応じて蹴る
   let dx = ref.vel.x, dz = ref.vel.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
@@ -1000,9 +1028,10 @@ let curTarget = null;
 {
   const stick = $('stick'), knob = $('knob');
   let sid = null, sx = 0, sy = 0;
-  const stStart = (id, x, y) => { sid = id; const r = stick.getBoundingClientRect(); sx = r.left + r.width / 2; sy = r.top + r.height / 2; stMove(x, y); };
-  const stMove = (x, y) => { let dx = x - sx, dy = y - sy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.mx = dx / m; input.mz = -dy / m; };
-  const stEnd = () => { sid = null; knob.style.transform = ''; input.mx = input.mz = 0; };
+  let fT = 0, fMax = 0, fX = 0, fZ = 0;
+  const stStart = (id, x, y) => { fT = performance.now(); fMax = 0; sid = id; const r = stick.getBoundingClientRect(); sx = r.left + r.width / 2; sy = r.top + r.height / 2; stMove(x, y); };
+  const stMove = (x, y) => { let dx = x - sx, dy = y - sy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.mx = dx / m; input.mz = -dy / m; const mg = Math.hypot(input.mx, input.mz); if (mg > fMax) { fMax = mg; fX = input.mx; fZ = input.mz; } };
+  const stEnd = () => { const quick = performance.now() - fT < 230 && fMax > 0.85; sid = null; knob.style.transform = ''; input.mx = input.mz = 0; if (quick && !G.paused && !panelOpen) refSlide(fX, fZ); };
   if ('ontouchstart' in window) {
     stick.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; stStart(t.identifier, t.clientX, t.clientY); }, { passive: false });
     addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === sid) stMove(t.clientX, t.clientY); }, { passive: false });
@@ -1042,6 +1071,7 @@ let curTarget = null;
     input.keys[e.code] = true;
     if (e.repeat) return;
     if (e.code === 'KeyF') onWhistle();
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !G.paused && !panelOpen) { let mx = 0, mz = 0; if (input.keys.KeyW || input.keys.ArrowUp) mz = 1; if (input.keys.KeyS || input.keys.ArrowDown) mz = -1; if (input.keys.KeyA || input.keys.ArrowLeft) mx = -1; if (input.keys.KeyD || input.keys.ArrowRight) mx = 1; if (!mx && !mz) mz = 1; refSlide(mx, mz); }
     if (e.code === 'KeyY') $('bY').dispatchEvent(new PointerEvent('pointerdown'));
     if (e.code === 'KeyR') $('bR').dispatchEvent(new PointerEvent('pointerdown'));
     if (e.code === 'KeyV') G.view = G.view === 1 ? 3 : 1;
@@ -1394,7 +1424,8 @@ function animate(p, dt, sp) {
 }
 function animateRef(dt) {
   const B = ref.body; const sp = Math.hypot(ref.vel.x, ref.vel.z);
-  const fake = { body: B, pos: ref.pos, face: ref.yaw, ph: ref.ph || 0, state: 'play', act: ref.kickAnim > 0 ? 'kick' : null, actT: ref.kickAnim, appeal: 0, role: 'REF' };
+  const sliding = ref.slideT > 0 || ref.slideRec > 0.4;
+  const fake = { body: B, pos: ref.pos, face: sliding ? ref.slideDir : ref.yaw, ph: ref.ph || 0, state: 'play', act: sliding ? 'slide' : ref.kickAnim > 0 ? 'kick' : null, actT: sliding ? 1 : ref.kickAnim, appeal: 0, role: 'REF' };
   if (ref.cardT > 0) { fake.act = null; }
   animate(fake, dt, sp); ref.ph = fake.ph;
   if (ref.cardT > 0) { B.shR.rotation.x = -2.9; B.shR.rotation.z = -0.15; B.elR.rotation.x = -0.1; }
@@ -1439,7 +1470,8 @@ function step(dt) {
   const m = Math.min(1, Math.hypot(mx, mz)), sp = 9.6 * m;
   const acc = 30 * dt;
   const tvx = m > 0.02 ? wx / Math.hypot(wx, wz) * sp : 0, tvz = m > 0.02 ? wz / Math.hypot(wx, wz) * sp : 0;
-  if (ref.hurtT > 0) { ref.hurtT -= dt; ref.vel.multiplyScalar(Math.pow(0.08, dt)); }
+  if (ref.slideT > 0 || ref.slideRec > 0) updateSlide(dt);
+  else if (ref.hurtT > 0) { ref.hurtT -= dt; ref.vel.multiplyScalar(Math.pow(0.08, dt)); }
   else { ref.vel.x += clamp(tvx - ref.vel.x, -acc, acc); ref.vel.z += clamp(tvz - ref.vel.z, -acc, acc); }
   ref.pos.addScaledVector(ref.vel, dt);
   ref.pos.x = clamp(ref.pos.x, -HW - 3, HW + 3); ref.pos.z = clamp(ref.pos.z, -HL - 3, HL + 3);
@@ -1551,7 +1583,8 @@ function updateCam(dt) {
   const bob = G.view === 1 ? Math.sin(perf * 0.012) * 0.03 * clamp(Math.hypot(ref.vel.x, ref.vel.z) / 9, 0, 1) : 0;
   const fx = Math.sin(ref.yaw), fz = Math.cos(ref.yaw);
   if (G.view === 1) {
-    cam.position.set(ref.pos.x + fx * 0.12, 1.72 + bob, ref.pos.z + fz * 0.12);
+    const low = (ref.slideT > 0 || ref.slideRec > 0.3) ? 0.85 : 0;
+    cam.position.set(ref.pos.x + fx * 0.12, 1.72 + bob - low, ref.pos.z + fz * 0.12);
     tmpV.set(cam.position.x + fx * Math.cos(ref.pitch), cam.position.y + Math.sin(ref.pitch), cam.position.z + fz * Math.cos(ref.pitch));
     cam.lookAt(tmpV);
   } else {
