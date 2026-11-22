@@ -1,6 +1,6 @@
 import { THREE, GLTFLoader } from './lib.js';
-import { makeCrowd } from './crowd.js?v=20261122i';
-import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122i';
+import { makeCrowd } from './crowd.js?v=20261122j';
+import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122j';
 
 // ================= 基本 =================
 const $ = id => document.getElementById(id);
@@ -564,7 +564,7 @@ function confirmGoal() {
 }
 function cancelGoal() {
   const gp = G.goalPending; G.goalPending = null;
-  gp.att.score--; gp.att.anger += 35; G.crowdAnger += 25;
+  gp.att.score--; gp.att.anger += 35; G.crowdAnger += 25; missJudge('missGoal');
   msg(T('goalCancelled', tName(gp.att)), 3);
   for (const p of nearest(active(gp.att), ref.pos, 4)) startProtest(p, 5);
   const gk = active(gp.def).find(p => p.role === 'GK');
@@ -757,6 +757,7 @@ function tackle(t, v) {
   if (Math.random() < (sev !== 'foul' ? 0.85 : 0.35)) G.retal.push({ team: v.team, target: t, at: G.clock + rnd(12, 35) });
 }
 function addFoul(t, v, sev) {
+  if (sev === 'red' && G.phase === 'live') (G.unseen = G.unseen || []).push({ p: t, w: 0 });
   const spot = v.pos.clone();
   G.lastFoul = { by: t, on: v, team: v.team, spot, sev, pk: inBox(t.team, spot), time: G.clock, half: G.half, real: performance.now() };
   G.offenses.push({ p: t, sev, real: performance.now() });
@@ -877,6 +878,8 @@ function giveCard(p, col) {
     if (active(p.team).length === 0) { setTimeout(() => endMatch(), 2500); }
   } else msg(`${T('yel')}: ${pName(p)}`, 2.6);
   CR('card', just);
+  G.unseen = (G.unseen || []).filter(u => u.p !== p);
+  if (!just) missJudge('missCard');
   const ang = just ? 4 : 22;
   p.team.anger += ang; G.crowdAnger += just ? 2 : 14;
   if (!just) for (const m of nearest(active(p.team), p.pos, 3)) startProtest(m, 3.5);
@@ -918,11 +921,11 @@ function openWhistlePanel() {
   const add = (lab, sub, cls, fn) => ch.push({ label: lab, sub, cls, fn });
   for (const t of [A, B]) {
     const sug = lfS && lfS.team === t;
-    add(`${T('fk')} ${tName(t)}`, sug && !lfS.pk ? T('fromFoul') : T('fromBall'), sug && !lfS.pk ? 'ok' : '', () => setRestart('fk', t, sug ? lfS.spot : ball.pos));
+    add(`${T('fk')} ${tName(t)}`, sug && !lfS.pk ? T('fromFoul') : T('fromBall'), sug && !lfS.pk ? 'ok' : '', () => { if (!(lfS && lfS.team === t)) missJudge('missFK'); setRestart('fk', t, sug ? lfS.spot : ball.pos); });
   }
   for (const t of [A, B]) {
     const sug = lfS && lfS.team === t && lfS.pk;
-    add(`${T('pk')} ${tName(t)}`, sug ? T('boxFoul') : '', sug ? 'ok' : '', () => setRestart('pk', t));
+    add(`${T('pk')} ${tName(t)}`, sug ? T('boxFoul') : '', sug ? 'ok' : '', () => { if (!sug) missJudge('missPK'); setRestart('pk', t); });
   }
   add(T('drop'), T('dropSub'), 'full', () => setRestart('drop', ball.last && ball.last !== 'ref' ? ball.last.team : A, ball.pos.clone()));
   for (const p of G.players.filter(x => x.needSub && !x.gone && !x.off)) add(T('subOk'), `${p.team.s} #${p.num} ${NM(p.name)}${T('injured')}`, 'full', () => { doSub(p); setRestart('drop', p.team, ball.pos.clone()); });
@@ -1030,6 +1033,8 @@ function onWhistle() {
   audioInit();
   if (G.paused || panelOpen) return;
   G.whistleCount++;
+  G.unseen = [];
+  if (G.rush && !G.rush.leaving) { sWhistle(); G.rush.leaving = true; G.miss = 0; missHUD(); calmAll(); msg(T('rushBack'), 2.6); hint(T('rushHint2')); return; }
   { const rough = G.brawl || G.players.some(p => ['brawl', 'retal', 'attackRef'].includes(p.state)); calmAll(); if (rough) { msg(T('calm'), 2); if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); } else sWhistle(); return; } }
   if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); }
   else if (G.phase === 'dead') { sWhistle(); openWhistlePanel(); }
@@ -1235,6 +1240,7 @@ const board = (() => {
 
 // ================= 試合の準備 =================
 function newMatch(saved) {
+  clearRush(); G.miss = 0; G.unseen = []; missHUD();
   let ia, ib;
   if (saved) { ia = saved.ta; ib = saved.tb; }
   else { ia = (Math.random() * TEAMS.length) | 0; do { ib = (Math.random() * TEAMS.length) | 0; } while (ib === ia || colorClash(TEAMS[ia], TEAMS[ib])); }
@@ -1721,6 +1727,8 @@ function step(dt) {
   // 乱入
   if (!G.invader && G.crowdAnger > 85 && Math.random() < dt * 0.02 && !G.invDone) spawnInvader();
   if (G.invader) updateInvader(dt);
+  if (G.unseen && G.unseen.length && G.phase === 'live') { for (let i = G.unseen.length - 1; i >= 0; i--) { const u = G.unseen[i]; u.w += dt; if (u.w > 7) { G.unseen.splice(i, 1); missJudge('missSeen'); } } }
+  if (G.rush) updateRush(dt);
   updateRetal();
   if (G.brawl) {
     G.brawl.t -= dt; G.brawl.refT -= dt;
@@ -1752,6 +1760,68 @@ function spawnThrow() {
   const target = V3(ref.pos.x + rnd(-3, 3), 0, ref.pos.z + rnd(-3, 3));
   const T = 1.4; const v = V3((target.x - start.x) / T, (0 - start.y + 4.9 * T * T) / T, (target.z - start.z) / T);
   m.position.copy(start); scene.add(m); throwns.push({ m, v, t: 0 });
+}
+// ---------- 誤審と観客のなだれ込み ----------
+let missLblT = 0;
+function missHUD(why) {
+  const e = $('miss'); if (!e) return;
+  e.innerHTML = `${T('missN', G.miss || 0)}` + (why ? `<span>${T(why)}</span>` : '');
+  e.classList.toggle('hot', (G.miss || 0) >= 7);
+  if (why) { e.classList.remove('pop'); void e.offsetWidth; e.classList.add('pop'); clearTimeout(missLblT); missLblT = setTimeout(() => missHUD(), 2600); }
+}
+function missJudge(why) {
+  if (G.rush || G.phase === 'over') return;
+  G.miss = (G.miss || 0) + 1; G.crowdAnger += 4;
+  missHUD(why);
+  if (G.miss >= 10) startRush();
+}
+const FAN_COLS = ['#e8e8e8', '#222222', '#c83030', '#2a5fb0', '#f2c200', '#2e8b57', '#7a3fa0', '#e07020'];
+function startRush() {
+  const fans = [];
+  const n = 22;
+  for (let i = 0; i < n; i++) {
+    const sh = pick(FAN_COLS);
+    const b = buildBody({ shirt: sh, shorts: pick(['#3a5a8a', '#222', '#555']), socks: '#ddd' }, null);
+    const side = i % 4;
+    const home = side === 0 ? V3(HW + rnd(5, 9), 0, rnd(-HL, HL)) : side === 1 ? V3(-HW - rnd(5, 9), 0, rnd(-HL, HL)) : side === 2 ? V3(rnd(-HW, HW), 0, HL + rnd(5, 9)) : V3(rnd(-HW, HW), 0, -HL - rnd(5, 9));
+    fans.push({ b, pos: home.clone(), home, ph: rnd(0, 6), face: 0, chase: i % 2 === 0, cd: rnd(0, 1), act: null, actT: 0, tgt: V3(rnd(-HW, HW), 0, rnd(-HL, HL)), sp: rnd(6.8, 8.6), delay: rnd(0, 1.5) });
+  }
+  G.rush = { fans, t: 0, leaving: false };
+  if (G.phase === 'live' || G.phase === 'pkshot') { ball.owner = null; ball.vel.multiplyScalar(0.3); setPhase('dead'); }
+  for (const p of allActive()) { p.vel.multiplyScalar(0.2); }
+  G.crowdAnger = 100; G.excite = 1; CR('goal'); flash(0.3);
+  msg(`<span style="color:#ff6b6b">${T('rush')}</span>`, 3.2); hint(T('rushHint'));
+}
+function clearRush() { if (!G.rush) return; for (const f of G.rush.fans) scene.remove(f.b.root); G.rush = null; }
+function updateRush(dt) {
+  const R = G.rush; R.t += dt;
+  for (let i = R.fans.length - 1; i >= 0; i--) {
+    const f = R.fans[i];
+    if (f.delay > 0 && !R.leaving) { f.delay -= dt; }
+    f.cd -= dt; if (f.actT > 0) { f.actT -= dt; if (f.actT <= 0) f.act = null; }
+    let tgt;
+    if (R.leaving) tgt = f.home;
+    else if (f.delay > 0) tgt = f.pos;
+    else if (f.chase) tgt = ref.pos;
+    else { if (f.pos.distanceTo(f.tgt) < 1.5) f.tgt.set(rnd(-HW + 2, HW - 2), 0, rnd(-HL + 2, HL - 2)); tgt = f.tgt; }
+    tmpV.subVectors(tgt, f.pos).setY(0); const d = tmpV.length();
+    const v = d > (f.chase && !R.leaving ? 0.8 : 0.3) ? f.sp * (R.leaving ? 1.1 : 1) : 0;
+    if (d > 0.01) tmpV.multiplyScalar(v / d);
+    if (f.act !== 'drop') f.pos.addScaledVector(tmpV, dt);
+    if (v > 0) f.face = Math.atan2(tmpV.x, tmpV.z);
+    // 主審をつかまえる
+    if (!R.leaving && f.chase && f.delay <= 0 && d < 1.2 && f.cd <= 0 && ref.downT <= 0) {
+      f.cd = 3.5; f.act = 'drop'; f.actT = 0.8;
+      tmpV.subVectors(ref.pos, f.pos).setY(0).normalize();
+      ref.vel.addScaledVector(tmpV, 6); ref.downT = 1.4;
+      $('hurt').style.opacity = 1; setTimeout(() => $('hurt').style.opacity = 0, 500); flash(0.2);
+      msg(`<span style="color:#ff6b6b">${T('rushHit')}</span>`, 1.6); CR('foul');
+    }
+    const fake = { body: f.b, pos: f.pos, face: f.face, ph: f.ph, state: 'play', act: f.act || (!R.leaving && !f.chase && v === 0 ? 'cele' : null), actT: f.act ? f.actT : 1, appeal: 0 };
+    animate(fake, dt, v); f.ph = fake.ph;
+    if (R.leaving && d < 1) { scene.remove(f.b.root); R.fans.splice(i, 1); }
+  }
+  if (R.leaving && (!R.fans.length || R.t > 60)) { clearRush(); G.crowdAnger *= 0.5; }
 }
 function spawnInvader() {
   G.invDone = true;
@@ -1833,7 +1903,7 @@ function begin(saved) {
 }
 $('go').onclick = () => begin(null);
 if (REC) {
-  window.__api = { endMatch, G, ref, ball, giveCard, onWhistle, setRestart, refTouchKick, offBallViolence, tackle, startProtest, msg, hint, closePanel, active, allActive, nearest, begin, flash, board: () => board,
+  window.__api = { missJudge, endMatch, G, ref, ball, giveCard, onWhistle, setRestart, refTouchKick, offBallViolence, tackle, startProtest, msg, hint, closePanel, active, allActive, nearest, begin, flash, board: () => board,
     setBoard: n => { G.added = n; boardT = 10; },
     advance(n, dt = 1 / 30) { for (let i = 0; i < n; i++) { perf += dt * 1000; crowdU.uTime.value = perf / 1000; if (!G.paused && !panelOpen) step(dt); updateCam(dt); const ex = clamp(G.excite, 0, 1); crowdU.uJump.value = lerp(crowdU.uJump.value, 0.04 + ex * 0.35, 0.05); } renderer.render(scene, cam); },
     render() { renderer.render(scene, cam); } };
