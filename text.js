@@ -1,0 +1,110 @@
+// 4言語（日本語・English・繁體中文・한국어）
+const D = {
+  ja: {
+    first: '前半', second: '後半', lead: 'あなたは主審。<br>笛ひとつで、試合が変わる。', go: 'キックオフへ', cont: '続きから',
+    how: '<b>笛</b>を吹くと、試合は必ず止まる。判定はすべてあなたが決める。<br><b>黄・赤</b>は、真ん中の輪に入れた相手に出せる。だれにでも、いつでも。<br>ボールに<b>走って当たれば蹴れる</b>。上を向くと浮く。あなたが入れても、ゴールはゴール。<br>前半3分・後半3分。アディショナルタイムは、あなたの気分。<br>PC：WASD 移動／ドラッグで視点／F 笛／Y 黄／R 赤／V 視点',
+    bW: '笛', bY: '黄', bR: '赤', bV: '視点', bM: '停止', bA: '＋時間',
+    addT: 'アディショナルタイム', addP: '第4審判がボードを掲げます。何分にしますか？', aOk: 'これで掲げる', aNo: 'あとで決める',
+    halfT: 'ハーフタイム', halfP: '両チームはエンドを入れかえます。', hGo: '後半へ',
+    pauseT: '一時停止', pRe: '試合にもどる', pEnd: '試合をやめてタイトルへ',
+    resT: '試合終了', rX: 'Xに投稿', rAg: 'もう1試合', load: 'スタジアムを準備中…', loadErr: '読みこみに失敗しました：',
+    mgr: '監督', ref: '主審', og: '（オウンゴール）', goal: 'ゴール！', hintCancel: '笛を吹くと、ゴールを取り消せます', goalCancelled: 'ゴール取り消し！ {0} が猛抗議',
+    refOut: '主審が蹴ったボールが外へ', kickoff: 'キックオフ', fk: 'フリーキック', pk: 'PK', throw: 'スローイン', cornerK: 'コーナーキック', goalkick: 'ゴールキック', drop: 'ドロップボール',
+    danger: '危ないタックル！', elbow: 'ボールのない所でひじ打ち！', mgrOff: '退席処分：{0}', mgrWarn: '警告：{0}', off: '退場', two2: '（イエロー2枚）', yel: 'イエローカード', brawl: '乱闘！', brawlSub: '笛で止められます',
+    fromFoul: '反則があった場所から', fromBall: 'ボールの場所から', boxFoul: 'ペナルティエリアの反則', dropSub: 'そのまま再開', subOk: '交代を許可', injured: '（けが）',
+    endH1: '前半終了', endH2: '試合終了', left: 'まだ {0}分 残っています', timeUp: '時間です', close: '閉じる（止めたまま）', closeSub: 'カードを出すなど。笛でまた開きます', hintPanel: '笛で判定を選べます',
+    stopped: '試合は止まっています。', lastFoul: '直前の反則：{0} → {1}', sevR: 'かなり危険なプレー', sevY: '悪質なプレー', pi: 'ピッ！',
+    corner: 'コーナー', correct: '正しい判定', makeGoal: 'ゴールにする', notIn: '入っていないけど', outT: 'ボールが外に出た', outP: '5秒たつと、正しい判定で自動で進みます',
+    subMsg: '交代：{0} #{1} {2} → #{3} {4}', offN: '退場 {0}人', noOff: '退場者なし', two: '・イエロー2枚', noneOff: 'だれも退場しませんでした', brawlStop: '乱闘を止めた',
+    goalJ: 'ゴールの判定', goalQ: 'このゴールを認めますか？', accept: '認める', cancel: '取り消す', noReason: '理由は聞かれません', pkRe: 'PKやり直し', notReady: 'まだ準備中です', far: 'ボールが遠い',
+    pkKick: '主審がPKのボールを蹴った！ 試合はそのまま続く', refKO: '主審のキックオフ！', refRe: '主審のキックで試合再開！', hold: 'ボールを持った（もう一度で投げる）', aimTip: '真ん中の輪に選手を入れてください',
+    addMsg: 'アディショナルタイムは {0}分', pushed: '{0} に突き飛ばされた！', catchB: 'キャッチ！', save: 'セーブ！', invader: '観客が乱入！',
+    hPK: '笛でPK', hPKwait: 'みんなが笛を待っています（笛でPK）', hKO: '笛でキックオフ', hDrop: '笛で再開', hFK: '笛でフリーキック', hTime1: '時間です。笛 →「前半終了」で終われます', hTime2: '時間です。笛 →「試合終了」で終われます',
+    share: '【八百長蹴球】主審をしました\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+  },
+  en: {
+    first: '1st', second: '2nd', lead: 'You are the referee.<br>One whistle changes the match.', go: 'To kick-off', cont: 'Continue',
+    how: 'Blow the <b>whistle</b> and play always stops. Every decision is yours.<br><b>Yellow / Red</b> go to whoever is in the center ring. Anyone, any time.<br><b>Run into the ball</b> to kick it. Look up to loft it. If you score, it still counts.<br>3 minutes each half. Stoppage time is up to your mood.<br>PC: WASD move / drag to look / F whistle / Y yellow / R red / V view',
+    bW: 'Whistle', bY: 'Y', bR: 'R', bV: 'View', bM: 'Pause', bA: '+Time',
+    addT: 'Stoppage time', addP: 'The fourth official raises the board. How many minutes?', aOk: 'Raise it', aNo: 'Decide later',
+    halfT: 'Half-time', halfP: 'The teams switch ends.', hGo: 'Second half',
+    pauseT: 'Paused', pRe: 'Back to the match', pEnd: 'Quit to title',
+    resT: 'Full time', rX: 'Post on X', rAg: 'Another match', load: 'Preparing the stadium…', loadErr: 'Failed to load: ',
+    mgr: 'Coach', ref: 'Referee', og: ' (own goal)', goal: 'GOAL!', hintCancel: 'Blow the whistle to cancel the goal', goalCancelled: 'Goal disallowed! {0} is furious',
+    refOut: 'The referee kicked it out', kickoff: 'Kick-off', fk: 'Free kick', pk: 'Penalty', throw: 'Throw-in', cornerK: 'Corner kick', goalkick: 'Goal kick', drop: 'Drop ball',
+    danger: 'Dangerous tackle!', elbow: 'An elbow off the ball!', mgrOff: 'Sent to the stands: {0}', mgrWarn: 'Warning: {0}', off: 'Sent off', two2: ' (second yellow)', yel: 'Yellow card', brawl: 'Brawl!', brawlSub: 'Whistle to stop it',
+    fromFoul: 'From where the foul was', fromBall: 'From the ball', boxFoul: 'Foul in the box', dropSub: 'Restart as is', subOk: 'Allow substitution', injured: ' (injured)',
+    endH1: 'End 1st half', endH2: 'End the match', left: '{0} min still left', timeUp: 'Time is up', close: 'Close (keep play stopped)', closeSub: 'Show cards etc. Whistle to reopen', hintPanel: 'Whistle to choose a decision',
+    stopped: 'Play is stopped.', lastFoul: 'Last foul: {0} → {1}', sevR: 'Very dangerous play', sevY: 'Reckless play', pi: 'PEEP!',
+    corner: 'Corner', correct: 'Correct call', makeGoal: 'Give a goal', notIn: 'even though it missed', outT: 'Ball out of play', outP: 'The correct call is made after 5 seconds',
+    subMsg: 'Sub: {0} #{1} {2} → #{3} {4}', offN: '{0} sent off', noOff: 'No one sent off', two: ', second yellow', noneOff: 'No one was sent off', brawlStop: 'Brawl stopped',
+    goalJ: 'Goal decision', goalQ: 'Do you allow this goal?', accept: 'Allow', cancel: 'Disallow', noReason: 'Nobody will ask why', pkRe: 'Retake the penalty', notReady: 'Not ready yet', far: 'Ball is too far',
+    pkKick: 'The referee kicked the penalty ball! Play goes on', refKO: "Referee's kick-off!", refRe: "Play restarts with the referee's kick!", hold: 'Holding the ball (again to throw)', aimTip: 'Put a player in the center ring',
+    addMsg: 'Stoppage time: {0} min', pushed: 'Shoved by {0}!', catchB: 'Caught!', save: 'Saved!', invader: 'A fan runs onto the pitch!',
+    hPK: 'Whistle for the penalty', hPKwait: 'Everyone is waiting for your whistle', hKO: 'Whistle to kick off', hDrop: 'Whistle to restart', hFK: 'Whistle for the free kick', hTime1: 'Time is up. Whistle → "End 1st half"', hTime2: 'Time is up. Whistle → "End the match"',
+    share: '[Rigged Football] I refereed a match\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+  },
+  zh: {
+    first: '上半場', second: '下半場', lead: '你是主裁判。<br>一聲哨響，比賽就變了。', go: '前往開球', cont: '繼續上次',
+    how: '吹<b>哨</b>，比賽一定停下。所有判決都由你決定。<br><b>黃牌・紅牌</b>可以給中間圓圈裡的人。誰都可以，隨時都可以。<br><b>跑去撞到球</b>就能踢。抬頭看就會挑高。你踢進的也算進球。<br>上下半場各3分鐘。傷停補時看你心情。<br>電腦：WASD 移動／拖曳轉視角／F 吹哨／Y 黃牌／R 紅牌／V 視角',
+    bW: '吹哨', bY: '黃', bR: '紅', bV: '視角', bM: '暫停', bA: '＋時間',
+    addT: '傷停補時', addP: '第四裁判會舉牌。要補幾分鐘？', aOk: '就舉這個', aNo: '之後再決定',
+    halfT: '中場休息', halfP: '兩隊交換場地。', hGo: '開始下半場',
+    pauseT: '暫停中', pRe: '回到比賽', pEnd: '結束比賽回到標題',
+    resT: '比賽結束', rX: '發到X', rAg: '再一場', load: '球場準備中…', loadErr: '讀取失敗：',
+    mgr: '教練', ref: '主裁判', og: '（烏龍球）', goal: '進球！', hintCancel: '吹哨就能取消進球', goalCancelled: '進球取消！{0} 強烈抗議',
+    refOut: '主裁判踢的球出界了', kickoff: '開球', fk: '任意球', pk: '點球', throw: '界外球', cornerK: '角球', goalkick: '球門球', drop: '墜球',
+    danger: '危險的鏟球！', elbow: '在無球處用手肘撞人！', mgrOff: '驅逐出場：{0}', mgrWarn: '警告：{0}', off: '紅牌', two2: '（兩黃變一紅）', yel: '黃牌', brawl: '打群架！', brawlSub: '吹哨可以制止',
+    fromFoul: '從犯規的位置', fromBall: '從球的位置', boxFoul: '禁區內犯規', dropSub: '直接恢復比賽', subOk: '允許換人', injured: '（受傷）',
+    endH1: '上半場結束', endH2: '比賽結束', left: '還剩 {0} 分鐘', timeUp: '時間到了', close: '關閉（保持停止）', closeSub: '例如出示牌。吹哨可以再打開', hintPanel: '吹哨可以選擇判決',
+    stopped: '比賽已停止。', lastFoul: '剛才的犯規：{0} → {1}', sevR: '非常危險的動作', sevY: '惡意的動作', pi: '嗶！',
+    corner: '角球', correct: '正確的判決', makeGoal: '算進球', notIn: '雖然沒進', outT: '球出界了', outP: '5秒後會自動照正確的判決進行',
+    subMsg: '換人：{0} #{1} {2} → #{3} {4}', offN: '紅牌出場 {0} 人', noOff: '沒有人被罰下', two: '・兩黃變一紅', noneOff: '沒有人被罰下', brawlStop: '制止了打群架',
+    goalJ: '進球判決', goalQ: '這球算進嗎？', accept: '算', cancel: '取消', noReason: '沒人會問理由', pkRe: '點球重踢', notReady: '還沒準備好', far: '球太遠了',
+    pkKick: '主裁判把點球的球踢走了！比賽直接繼續', refKO: '主裁判親自開球！', refRe: '主裁判一腳恢復比賽！', hold: '拿起球了（再按一次丟出去）', aimTip: '請把球員放進中間的圓圈',
+    addMsg: '傷停補時 {0} 分鐘', pushed: '被 {0} 推倒了！', catchB: '接住了！', save: '撲救！', invader: '觀眾衝進場了！',
+    hPK: '吹哨踢點球', hPKwait: '大家都在等你吹哨（踢點球）', hKO: '吹哨開球', hDrop: '吹哨恢復比賽', hFK: '吹哨踢任意球', hTime1: '時間到了。吹哨 →「上半場結束」', hTime2: '時間到了。吹哨 →「比賽結束」',
+    share: '【假球足球】我當了一場主裁判\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+  },
+  ko: {
+    first: '전반', second: '후반', lead: '당신은 주심.<br>휘슬 하나로 경기가 바뀐다.', go: '킥오프로', cont: '이어서 하기',
+    how: '<b>휘슬</b>을 불면 경기는 반드시 멈춘다. 판정은 모두 당신이 정한다.<br><b>옐로・레드</b>는 가운데 원에 들어온 상대에게 줄 수 있다. 누구에게나, 언제든지.<br>공에 <b>달려가 부딪히면 찰 수 있다</b>. 위를 보면 뜬다. 당신이 넣어도 골은 골.<br>전반 3분・후반 3분. 추가 시간은 당신 기분대로.<br>PC: WASD 이동／드래그로 시점／F 휘슬／Y 옐로／R 레드／V 시점',
+    bW: '휘슬', bY: '옐로', bR: '레드', bV: '시점', bM: '정지', bA: '＋시간',
+    addT: '추가 시간', addP: '대기심이 보드를 든다. 몇 분으로 할까?', aOk: '이걸로 든다', aNo: '나중에 정한다',
+    halfT: '하프타임', halfP: '두 팀은 진영을 바꾼다.', hGo: '후반으로',
+    pauseT: '일시 정지', pRe: '경기로 돌아가기', pEnd: '경기를 그만두고 타이틀로',
+    resT: '경기 종료', rX: 'X에 올리기', rAg: '한 경기 더', load: '경기장 준비 중…', loadErr: '불러오기에 실패했습니다: ',
+    mgr: '감독', ref: '주심', og: ' (자책골)', goal: '골!', hintCancel: '휘슬을 불면 골을 취소할 수 있다', goalCancelled: '골 취소! {0} 맹렬히 항의',
+    refOut: '주심이 찬 공이 밖으로', kickoff: '킥오프', fk: '프리킥', pk: 'PK', throw: '스로인', cornerK: '코너킥', goalkick: '골킥', drop: '드롭볼',
+    danger: '위험한 태클!', elbow: '공 없는 곳에서 팔꿈치 가격!', mgrOff: '퇴장 처분: {0}', mgrWarn: '경고: {0}', off: '퇴장', two2: ' (경고 2회)', yel: '옐로카드', brawl: '난투극!', brawlSub: '휘슬로 멈출 수 있다',
+    fromFoul: '반칙한 자리에서', fromBall: '공 있는 자리에서', boxFoul: '페널티 에어리어 반칙', dropSub: '그대로 재개', subOk: '교체 허가', injured: ' (부상)',
+    endH1: '전반 종료', endH2: '경기 종료', left: '아직 {0}분 남았다', timeUp: '시간이 됐다', close: '닫기 (멈춘 채로)', closeSub: '카드를 주는 등. 휘슬로 다시 연다', hintPanel: '휘슬로 판정을 고를 수 있다',
+    stopped: '경기가 멈춰 있다.', lastFoul: '직전 반칙: {0} → {1}', sevR: '매우 위험한 플레이', sevY: '악질적인 플레이', pi: '삑!',
+    corner: '코너', correct: '올바른 판정', makeGoal: '골로 인정', notIn: '안 들어갔지만', outT: '공이 밖으로 나갔다', outP: '5초 뒤 올바른 판정으로 자동 진행',
+    subMsg: '교체: {0} #{1} {2} → #{3} {4}', offN: '퇴장 {0}명', noOff: '퇴장자 없음', two: '・경고 2회', noneOff: '아무도 퇴장당하지 않았다', brawlStop: '난투극을 멈췄다',
+    goalJ: '골 판정', goalQ: '이 골을 인정할까?', accept: '인정', cancel: '취소', noReason: '이유는 묻지 않는다', pkRe: 'PK 다시', notReady: '아직 준비 중', far: '공이 멀다',
+    pkKick: '주심이 PK 공을 차 버렸다! 경기는 그대로 계속', refKO: '주심의 킥오프!', refRe: '주심의 킥으로 경기 재개!', hold: '공을 들었다 (한 번 더 누르면 던진다)', aimTip: '가운데 원에 선수를 넣어 주세요',
+    addMsg: '추가 시간 {0}분', pushed: '{0}에게 밀쳐졌다!', catchB: '캐치!', save: '선방!', invader: '관중 난입!',
+    hPK: '휘슬로 PK', hPKwait: '모두가 휘슬을 기다린다 (휘슬로 PK)', hKO: '휘슬로 킥오프', hDrop: '휘슬로 재개', hFK: '휘슬로 프리킥', hTime1: '시간이 됐다. 휘슬 →「전반 종료」', hTime2: '시간이 됐다. 휘슬 →「경기 종료」',
+    share: '【승부조작 축구】주심을 봤다\n{0} {1}-{2} {3}\n{4}\n#八百長蹴球 #ブラウザゲーム\n{5}', vs: 'vs',
+  },
+};
+// チーム名（[正式, 短い]）
+export const TEAM_L = {
+  en: [['Minamihama United', 'Minamihama'], ['Kirigaoka FC', 'Kirigaoka'], ['Shinonome Rovers', 'Shinonome'], ['Shirakaba City', 'Shirakaba'], ['Momijidai SC', 'Momijidai'], ['Mikazukiko FC', 'Mikazuki'], ['Kuroshio Wanderers', 'Kuroshio'], ['Kitatodai Athletic', 'Kitatodai']],
+  zh: [['南濱聯', '南濱'], ['霧丘FC', '霧丘'], ['東雲流浪者', '東雲'], ['白樺城', '白樺'], ['紅葉台SC', '紅葉台'], ['三日月港FC', '三日月'], ['黑潮流浪者', '黑潮'], ['北燈塔競技', '北燈塔']],
+  ko: [['미나미하마 유나이티드', '미나미하마'], ['기리가오카 FC', '기리가오카'], ['시노노메 로버스', '시노노메'], ['시라카바 시티', '시라카바'], ['모미지다이 SC', '모미지다이'], ['미카즈키코 FC', '미카즈키'], ['구로시오 원더러스', '구로시오'], ['기타토다이 애슬레틱', '기타토다이']],
+};
+// 名字（SURN と同じ順）
+export const SURN_L = {
+  en: ['Sato', 'Suzuki', 'Takahashi', 'Tanaka', 'Ito', 'Watanabe', 'Yamamoto', 'Nakamura', 'Kobayashi', 'Kato', 'Yoshida', 'Yamada', 'Sasaki', 'Yamaguchi', 'Matsumoto', 'Inoue', 'Kimura', 'Hayashi', 'Shimizu', 'Yamazaki', 'Mori', 'Ikeda', 'Hashimoto', 'Abe', 'Ishikawa', 'Maeda', 'Fujita', 'Ogawa', 'Okada', 'Goto', 'Hasegawa', 'Murakami', 'Kondo', 'Ishii', 'Sakamoto', 'Endo', 'Aoki', 'Fujii', 'Nishimura', 'Fukuda', 'Ota', 'Miura', 'Okamoto', 'Matsuda', 'Nakagawa', 'Nakano', 'Harada', 'Ono', 'Takeuchi', 'Kaneko'],
+  ko: ['사토', '스즈키', '다카하시', '다나카', '이토', '와타나베', '야마모토', '나카무라', '고바야시', '가토', '요시다', '야마다', '사사키', '야마구치', '마쓰모토', '이노우에', '기무라', '하야시', '시미즈', '야마자키', '모리', '이케다', '하시모토', '아베', '이시카와', '마에다', '후지타', '오가와', '오카다', '고토', '하세가와', '무라카미', '곤도', '이시이', '사카모토', '엔도', '아오키', '후지이', '니시무라', '후쿠다', '오타', '미우라', '오카모토', '마쓰다', '나카가와', '나카노', '하라다', '오노', '다케우치', '가네코'],
+};
+export const LANGS = [['ja', '日本語'], ['en', 'English'], ['zh', '繁體中文'], ['ko', '한국어']];
+export function pickLang() {
+  try { const s = localStorage.getItem('yaocho_lang'); if (s && D[s]) return s; } catch (e) { }
+  const n = (navigator.language || 'ja').toLowerCase();
+  if (n.startsWith('ja')) return 'ja'; if (n.startsWith('zh')) return 'zh'; if (n.startsWith('ko')) return 'ko'; return 'en';
+}
+export const LANG = { v: pickLang() };
+export function t(k, ...a) { const s = (D[LANG.v] && D[LANG.v][k]) ?? D.ja[k] ?? k; return a.length ? s.replace(/\{(\d)\}/g, (_, i) => a[+i] ?? '') : s; }

@@ -1,5 +1,6 @@
 import { THREE, GLTFLoader } from './lib.js';
 import { makeCrowd } from './crowd.js';
+import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js';
 
 // ================= 基本 =================
 const $ = id => document.getElementById(id);
@@ -35,6 +36,7 @@ const GK_COL = ['#c6f21f', '#ff4fb0', '#9b59ff', '#20d6c7'];
 const FORM = [[0, -28.4, 'GK'], [-8, -19, 'DF'], [8, -19, 'DF'], [-13, -7, 'MF'], [0, -9, 'MF'], [13, -7, 'MF'], [0, 3, 'FW']];
 
 // ================= 描画 =================
+try { $('load').textContent = T('load'); } catch (e) { }
 const canvas = $('gl');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH ? 1.6 : 2));
@@ -328,14 +330,15 @@ let hintText = '';
 function hint(t) { if (t === hintText) return; hintText = t; $('hint').innerHTML = t; $('hint').style.opacity = t ? 1 : 0; }
 function flash(a = 0.6) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = a; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
 const tName = t => `<span class="tcol" style="background:${t.kit.shirt}"></span>${t.s}`;
-const pName = p => p.role === 'MGR' ? `${tName(p.team)} 監督 ${p.name}` : `${tName(p.team)} #${p.num} ${p.name}`;
+const NM = n => { const i = SURN.indexOf(n); return i >= 0 && SURN_L[LANG.v] ? SURN_L[LANG.v][i] : n; };
+const pName = p => p.role === 'MGR' ? `${tName(p.team)} ${T('mgr')} ${NM(p.name)}` : `${tName(p.team)} #${p.num} ${NM(p.name)}`;
 const fmt = s => { s = Math.max(0, Math.floor(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 let sbLast = '';
 function drawHUD() {
   const [A, B] = G.teams;
   $('sc').textContent = `${A.score} - ${B.score}`;
   $('ck').textContent = fmt(G.clock);
-  $('hf').textContent = G.half === 1 ? '前半' : '後半';
+  $('hf').textContent = G.half === 1 ? T('first') : T('second');
   $('ad').textContent = G.added != null ? '+' + G.added : '';
   const key = A.score + '-' + B.score + fmt(G.clock) + G.half + G.added;
   if (key !== sbLast) {
@@ -512,12 +515,12 @@ function onGoal(s) {
   setPhase('goal');
   att.score++;
   CR('goal'); flash(0.35);
-  const by = ball.last === 'ref' ? '<b style="color:#ffd21f">主審</b>' : ball.last && ball.last.team === def ? `${pName(ball.last)}（オウンゴール）` : ball.last ? pName(ball.last) : '';
-  msg(`ゴール！ ${tName(att)}<br><small>${by}</small>`, 4);
+  const by = ball.last === 'ref' ? `<b style="color:#ffd21f">${T('ref')}</b>` : ball.last && ball.last.team === def ? `${pName(ball.last)}${T('og')}` : ball.last ? pName(ball.last) : '';
+  msg(`${T('goal')} ${tName(att)}<br><small>${by}</small>`, 4);
   for (const p of active(att)) { if (p.state === 'play') { p.act = 'cele'; p.actT = 4; } }
   for (const p of active(def)) { if (p.state === 'play') { p.act = 'sad'; p.actT = 3; } }
   if (ball.last === 'ref') { def.anger += 45; G.crowdAnger += 40; for (const p of nearest(active(def), ref.pos, 4)) startProtest(p, 5); }
-  hint('笛を吹くと、ゴールを取り消せます');
+  hint(T('hintCancel'));
   save();
 }
 function confirmGoal() {
@@ -527,7 +530,7 @@ function confirmGoal() {
 function cancelGoal() {
   const gp = G.goalPending; G.goalPending = null;
   gp.att.score--; gp.att.anger += 35; G.crowdAnger += 25;
-  msg(`ゴール取り消し！ ${tName(gp.att)} が猛抗議`, 3);
+  msg(T('goalCancelled', tName(gp.att)), 3);
   for (const p of nearest(active(gp.att), ref.pos, 4)) startProtest(p, 5);
   const gk = active(gp.def).find(p => p.role === 'GK');
   setRestart('goalkick', gp.def, V3(0, BR, -gp.def.dir * (HL - 3)));
@@ -538,7 +541,7 @@ function onOut(kind, s) {
   ball.owner = null;
   const lastTeam = ball.last && ball.last !== 'ref' ? ball.last.team : (ball.lastP ? ball.lastP.team : null);
   const byRef = ball.last === 'ref';
-  if (byRef) msg('主審が蹴ったボールが外へ', 1.6);
+  if (byRef) msg(T('refOut'), 1.6);
   let correct, type, spot;
   if (kind === 'touch') {
     const t = lastTeam ? G.teams[1 - lastTeam.i] : G.teams[Math.random() < .5 ? 0 : 1];
@@ -570,7 +573,7 @@ function setRestart(type, team, spot) {
   setPhase('restart');
   const needW = type === 'kickoff' || type === 'fk' || type === 'pk' || type === 'drop';
   R.needW = needW;
-  const lbl = { kickoff: 'キックオフ', fk: 'フリーキック', pk: 'PK', throw: 'スローイン', corner: 'コーナーキック', goalkick: 'ゴールキック', drop: 'ドロップボール' }[type];
+  const lbl = { kickoff: T('kickoff'), fk: T('fk'), pk: T('pk'), throw: T('throw'), corner: T('cornerK'), goalkick: T('goalkick'), drop: T('drop') }[type];
   if (type !== 'kickoff') msg(`${lbl}：${tName(team)}`, 2.4);
   if (type === 'pk') { G.pk = { state: 'setup', t: 0, retakes: 0, side: pick([-1, 1]), high: Math.random() < 0.35 }; }
 }
@@ -708,7 +711,7 @@ function tackle(t, v) {
   // 倒された側の訴え
   for (const m of nearest(active(v.team).filter(x => x !== v), spot, 2)) { m.appeal = 1.4; }
   if (sev !== 'foul') CR('foul');
-  if (sev === 'red') { G.excite = 1; G.crowdAnger += 12; msg('<span style="color:#ff8a8a">危ないタックル！</span>', 1.6); }
+  if (sev === 'red') { G.excite = 1; G.crowdAnger += 12; msg(`<span style="color:#ff8a8a">${T('danger')}</span>`, 1.6); }
 }
 function foulFall(v, sev) {
   v.state = 'down'; v.fallDir = Math.random() < .5 ? 1 : -1;
@@ -726,7 +729,7 @@ function offBallViolence() {
       G.lastFoul = { by: a, on: b, team: b.team, spot: b.pos.clone(), sev: 'red', pk: inBox(a.team, b.pos), time: G.clock, half: G.half, real: performance.now() };
       G.offenses.push({ p: a, sev: 'red', real: performance.now() });
       G.crowdAnger += 12; G.excite = 1;
-      msg('<span style="color:#ff8a8a">ボールのない所でひじ打ち！</span>', 1.8);
+      msg(`<span style="color:#ff8a8a">${T('elbow')}</span>`, 1.8);
       return true;
     }
   }
@@ -745,8 +748,8 @@ function giveCard(p, col) {
   const c = $('card'); c.style.background = col === 'Y' ? 'var(--yel)' : 'var(--red)'; if (G.view === 1) c.classList.add('up'); setTimeout(() => c.classList.remove('up'), 1700);
   sWhistle();
   if (p.role === 'MGR') {
-    if (col === 'R') { p.off = true; p.state = 'leaving'; msg(`退席処分：${pName(p)}`, 3); G.sentOff.push({ p, t: G.clock, half: G.half }); }
-    else msg(`警告：${pName(p)}`, 2.5);
+    if (col === 'R') { p.off = true; p.state = 'leaving'; msg(T('mgrOff', pName(p)), 3); G.sentOff.push({ p, t: G.clock, half: G.half }); }
+    else msg(T('mgrWarn', pName(p)), 2.5);
     p.team.anger += 15; return;
   }
   const just = col === 'Y' ? G.offenses.some(o => o.p === p && performance.now() - o.real < 25000) : G.offenses.some(o => o.p === p && o.sev === 'red' && performance.now() - o.real < 25000);
@@ -757,11 +760,11 @@ function giveCard(p, col) {
     p.off = true; p.state = 'leaving';
     if (ball.owner === p) ball.owner = null;
     G.sentOff.push({ p, t: G.clock, half: G.half, two: col === 'Y' });
-    msg(`<span style="color:#ff6b6b">退場</span>：${pName(p)}${col === 'Y' ? '（イエロー2枚）' : ''}`, 3.2);
+    msg(`<span style="color:#ff6b6b">${T('off')}</span>: ${pName(p)}${col === 'Y' ? T('two2') : ''}`, 3.2);
     // GKが退場したら代わりを立てる
     if (p.role === 'GK') { const rep = active(p.team).filter(x => x.role !== 'GK').sort((a, b) => a.slot - b.slot)[0]; if (rep) { rep.role = 'GK'; rep.slot = 0; } }
     if (active(p.team).length === 0) { setTimeout(() => endMatch(), 2500); }
-  } else msg(`イエローカード：${pName(p)}`, 2.6);
+  } else msg(`${T('yel')}: ${pName(p)}`, 2.6);
   CR('card', just);
   const ang = just ? 4 : 22;
   p.team.anger += ang; G.crowdAnger += just ? 2 : 14;
@@ -776,7 +779,7 @@ function startBrawl(at) {
   if (ps.length < 4) return;
   G.brawl = { t: 9, ps, at: at.clone() };
   for (const p of ps) { p.state = 'brawl'; p.stT = 9; }
-  msg('<span style="color:#ff6b6b">乱闘！</span> 笛で止められます', 3);
+  msg(`<span style="color:#ff6b6b">${T('brawl')}</span> ${T('brawlSub')}`, 3);
   G.crowdAnger += 10; G.excite = 1;
 }
 
@@ -802,35 +805,35 @@ function openWhistlePanel() {
   const add = (lab, sub, cls, fn) => ch.push({ label: lab, sub, cls, fn });
   for (const t of [A, B]) {
     const sug = lf && lf.team === t;
-    add(`FK ${tName(t)}`, sug && !lf.pk ? '反則があった場所から' : 'ボールの場所から', sug && !lf.pk ? 'ok' : '', () => setRestart('fk', t, sug ? lf.spot : ball.pos));
+    add(`${T('fk')} ${tName(t)}`, sug && !lf.pk ? T('fromFoul') : T('fromBall'), sug && !lf.pk ? 'ok' : '', () => setRestart('fk', t, sug ? lf.spot : ball.pos));
   }
   for (const t of [A, B]) {
     const sug = lf && lf.team === t && lf.pk;
-    add(`PK ${tName(t)}`, sug ? 'ペナルティエリアの反則' : '', sug ? 'ok' : '', () => setRestart('pk', t));
+    add(`${T('pk')} ${tName(t)}`, sug ? T('boxFoul') : '', sug ? 'ok' : '', () => setRestart('pk', t));
   }
-  add('ドロップボール', 'そのまま再開', 'full', () => setRestart('drop', ball.last && ball.last !== 'ref' ? ball.last.team : A, ball.pos.clone()));
-  for (const p of G.players.filter(x => x.needSub && !x.gone && !x.off)) add(`交代を許可`, `${p.team.s} #${p.num} ${p.name}（けが）`, 'full', () => { doSub(p); setRestart('drop', p.team, ball.pos.clone()); });
+  add(T('drop'), T('dropSub'), 'full', () => setRestart('drop', ball.last && ball.last !== 'ref' ? ball.last.team : A, ball.pos.clone()));
+  for (const p of G.players.filter(x => x.needSub && !x.gone && !x.off)) add(T('subOk'), `${p.team.s} #${p.num} ${NM(p.name)}${T('injured')}`, 'full', () => { doSub(p); setRestart('drop', p.team, ball.pos.clone()); });
   const left = HALF_LEN - G.clock;
-  add(G.half === 1 ? '前半終了' : '試合終了', left > 0 ? `まだ ${Math.ceil(left / 60)}分 残っています` : '時間です', 'full ' + (left > 0 ? 'warn' : 'ok'), () => endHalf());
-  add('閉じる（止めたまま）', 'カードを出すなど。笛でまた開きます', 'full', () => { hint('笛で判定を選べます'); });
-  let desc = '試合は止まっています。';
-  if (lf) desc = `直前の反則：${pName(lf.by)} → ${pName(lf.on)}${lf.sev === 'red' ? '<br><b style="color:#ff6b6b">かなり危険なプレー</b>' : lf.sev === 'yellow' ? '<br><b style="color:#ffd21f">悪質なプレー</b>' : ''}`;
-  openPanel('ピッ！', desc, ch);
+  add(G.half === 1 ? T('endH1') : T('endH2'), left > 0 ? T('left', Math.ceil(left / 60)) : T('timeUp'), 'full ' + (left > 0 ? 'warn' : 'ok'), () => endHalf());
+  add(T('close'), T('closeSub'), 'full', () => { hint(T('hintPanel')); });
+  let desc = T('stopped');
+  if (lf) desc = T('lastFoul', pName(lf.by), pName(lf.on)) + (lf.sev === 'red' ? `<br><b style="color:#ff6b6b">${T('sevR')}</b>` : lf.sev === 'yellow' ? `<br><b style="color:#ffd21f">${T('sevY')}</b>` : '');
+  openPanel(T('pi'), desc, ch);
 }
 function openOutPanel() {
   const O = G.outInfo, [A, B] = G.teams;
-  const lbl = { throw: 'スローイン', corner: 'コーナー', goalkick: 'ゴールキック' };
+  const lbl = { throw: T('throw'), corner: T('corner'), goalkick: T('goalkick') };
   const ch = [];
   const types = O.kind === 'touch' ? ['throw'] : ['corner', 'goalkick'];
   for (const ty of types) for (const t of [A, B]) {
     if (ty === 'corner' && t === teamOfGoal(O.s)) continue;
     if (ty === 'goalkick' && t !== teamOfGoal(O.s)) continue;
     const ok = O.correct.type === ty && O.correct.team === t;
-    ch.push({ label: `${lbl[ty]} ${tName(t)}`, sub: ok ? '正しい判定' : '', cls: ok ? 'ok' : '', fn: () => decideOut(ty, t) });
+    ch.push({ label: `${lbl[ty]} ${tName(t)}`, sub: ok ? T('correct') : '', cls: ok ? 'ok' : '', fn: () => decideOut(ty, t) });
   }
   if (O.kind === 'touch') {} else {}
-  ch.push({ label: 'ゴールにする', sub: '入っていないけど', cls: 'full warn', fn: () => { G.outInfo = null; setPhase('live'); onGoal(O.s); } });
-  openPanel('ボールが外に出た', '5秒たつと、正しい判定で自動で進みます', ch);
+  ch.push({ label: T('makeGoal'), sub: T('notIn'), cls: 'full warn', fn: () => { G.outInfo = null; setPhase('live'); onGoal(O.s); } });
+  openPanel(T('outT'), T('outP'), ch);
 }
 function decideOut(ty, t) {
   const O = G.outInfo; G.outInfo = null;
@@ -849,7 +852,7 @@ function doSub(p) {
   np.role = p.role; np.yellow = 0;
   np.pos.set(-(HW + 1.5), 0, p.team.dir * -6); np.face = Math.PI / 2;
   p.team.players.push(np); G.players.push(np);
-  msg(`交代：${p.team.s} #${p.num} ${p.name} → #${num} ${np.name}`, 3);
+  msg(T('subMsg', p.team.s, p.num, NM(p.name), num, NM(np.name)), 3);
 }
 function endHalf() {
   sWhistle(true);
@@ -879,40 +882,61 @@ function endMatch() {
   $('rVs').innerHTML = vsHTML();
   $('rS').textContent = `${A.score} - ${B.score}`;
   const n = G.sentOff.length;
-  $('rN').textContent = n ? `退場 ${n}人` : '退場者なし';
-  $('rOff').innerHTML = n ? G.sentOff.map(o => `<div><span class="rc"></span>${pName(o.p)}<span style="color:#9aa">（${o.half === 1 ? '前半' : '後半'} ${fmt(o.t)}${o.two ? '・イエロー2枚' : ''}）</span></div>`).join('') : '<div style="color:#9aa">だれも退場しませんでした</div>';
+  $('rN').textContent = n ? T('offN', n) : T('noOff');
+  $('rOff').innerHTML = n ? G.sentOff.map(o => `<div><span class="rc"></span>${pName(o.p)}<span style="color:#9aa">（${o.half === 1 ? T('first') : T('second')} ${fmt(o.t)}${o.two ? T('two') : ''}）</span></div>`).join('') : `<div style="color:#9aa">${T('noneOff')}</div>`;
   $('rOff').hidden = false;
   $('result').hidden = false;
   try { gtag('event', 'result_view', { game: 'yaocho' }); } catch (e) { }
 }
-function vsHTML() { const [A, B] = G.teams; return `<span><span class="sw" style="background:${A.kit.shirt}"></span>${A.n}</span><span style="opacity:.6">vs</span><span><span class="sw" style="background:${B.kit.shirt}"></span>${B.n}</span>`; }
+function teamNames() {
+  G.teams.forEach((t, k) => { const i = G.ti[k], L = TEAM_L[LANG.v]; if (L) { t.n = L[i][0]; t.s = L[i][1]; } else { t.n = TEAMS[i].n; t.s = TEAMS[i].s; } });
+}
+function applyLang() {
+  document.documentElement.lang = LANG.v === 'zh' ? 'zh-Hant' : LANG.v;
+  const set = (sel, k) => { const e = document.querySelector(sel); if (e) e.innerHTML = T(k); };
+  set('#title .lead', 'lead'); set('#go', 'go'); set('#cont', 'cont'); set('#title .how', 'how');
+  for (const k of ['bW', 'bY', 'bR', 'bV', 'bM', 'bA']) set('#' + k, k);
+  set('#addp h2', 'addT'); set('#addp p', 'addP'); set('#aOk', 'aOk'); set('#aNo', 'aNo');
+  set('#half h2', 'halfT'); set('#half p', 'halfP'); set('#hGo', 'hGo');
+  set('#pause h2', 'pauseT'); set('#pRe', 'pRe'); set('#pEnd', 'pEnd');
+  set('#result h2', 'resT'); set('#rX', 'rX'); set('#rAg', 'rAg');
+  if (!$('load').hidden && !/:|：/.test($('load').textContent)) set('#load', 'load');
+  document.querySelectorAll('#lang button').forEach(b => b.classList.toggle('on', b.dataset.l === LANG.v));
+  if (G.teams.length) { teamNames(); $('nA').textContent = G.teams[0].s; $('nB').textContent = G.teams[1].s; $('tVs').innerHTML = vsHTML(); sbLast = ''; drawHUD(); }
+}
+{
+  const box = document.createElement('div'); box.id = 'lang'; box.className = 'langs';
+  for (const [k, name] of LANGS) { const b = document.createElement('button'); b.dataset.l = k; b.textContent = name; b.onclick = () => { LANG.v = k; try { localStorage.setItem('yaocho_lang', k); } catch (e) { } applyLang(); }; box.appendChild(b); }
+  document.querySelector('#title .box').appendChild(box);
+}
+function vsHTML() { const [A, B] = G.teams; return `<span><span class="sw" style="background:${A.kit.shirt}"></span>${A.n}</span><span style="opacity:.6">${T('vs')}</span><span><span class="sw" style="background:${B.kit.shirt}"></span>${B.n}</span>`; }
 
 // ================= 審判の操作 =================
 function onWhistle() {
   audioInit();
   if (G.paused || panelOpen) return;
   G.whistleCount++;
-  if (G.brawl) { sWhistle(); for (const p of G.brawl.ps) if (p.state === 'brawl') { p.state = 'play'; p.freeze = 1.2; } G.brawl = null; msg('乱闘を止めた', 2); if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); } return; }
+  if (G.brawl) { sWhistle(); for (const p of G.brawl.ps) if (p.state === 'brawl') { p.state = 'play'; p.freeze = 1.2; } G.brawl = null; msg(T('brawlStop'), 2); if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); } return; }
   if (G.phase === 'live') { whistleStop(); setPhase('dead'); openWhistlePanel(); }
   else if (G.phase === 'dead') { sWhistle(); openWhistlePanel(); }
-  else if (G.phase === 'goal') { sWhistle(); openPanel('ゴールの判定', 'このゴールを認めますか？', [{ label: '認める', cls: 'ok', fn: confirmGoal }, { label: '取り消す', sub: '理由は聞かれません', cls: 'warn', fn: cancelGoal }]); }
+  else if (G.phase === 'goal') { sWhistle(); openPanel(T('goalJ'), T('goalQ'), [{ label: T('accept'), cls: 'ok', fn: confirmGoal }, { label: T('cancel'), sub: T('noReason'), cls: 'warn', fn: cancelGoal }]); }
   else if (G.phase === 'restart') {
     const R = G.restart;
     if (R.type === 'pk' && G.pk) {
       if (G.pk.state === 'ready') { sWhistle(); executeRestart(); }
-      else if (G.pk.state === 'runup') { sWhistle(); G.pk.state = 'setup'; G.pk.retakes++; R.taker.state = 'protest'; R.taker.stT = 1.5; msg('PKやり直し', 1.8); R.team.anger += 6; }
+      else if (G.pk.state === 'runup') { sWhistle(); G.pk.state = 'setup'; G.pk.retakes++; R.taker.state = 'protest'; R.taker.stT = 1.5; msg(T('pkRe'), 1.8); R.team.anger += 6; }
       else { sWhistle(); openWhistlePanel(); }
       return;
     }
     if (R.ready || (R.taker && R.taker.pos.distanceTo(R.spot) < 3 && R.t > 0.8)) { sWhistle(); R.ready = true; executeRestart(); }
-    else msg('まだ準備中です', 1.2);
+    else msg(T('notReady'), 1.2);
   } else if (G.phase === 'pkshot') { whistleStop(); setPhase('dead'); openWhistlePanel(); }
   else if (G.phase === 'out') { sWhistle(); openOutPanel(); }
 }
 function refNearBall(r = 1.2) { return Math.hypot(ball.pos.x - ref.pos.x, ball.pos.z - ref.pos.z) < r && ball.pos.y < 1.6; }
 function refKick(power) {
   if (ball.held) { refThrow(); return; }
-  if (!refNearBall(1.7)) { msg('ボールが遠い', 1); return; }
+  if (!refNearBall(1.7)) { msg(T('far'), 1); return; }
   const was = ball.owner; ball.owner = null;
   const fx = Math.sin(ref.yaw), fz = Math.cos(ref.yaw);
   tmpV.set(fx, 0, fz);
@@ -920,7 +944,7 @@ function refKick(power) {
   kickBall('ref', tmpV, sp, lift);
   ref.kickAnim = 0.35;
   if (was) { was.team.anger += 8; startProtest(was, 1.5); }
-  if (G.phase === 'restart' && G.restart && G.restart.type === 'pk') { G.restart.team.anger += 10; startProtest(G.restart.taker, 3); msg('主審がPKのボールを蹴った！', 2); }
+  if (G.phase === 'restart' && G.restart && G.restart.type === 'pk') { G.restart.team.anger += 10; startProtest(G.restart.taker, 3); msg(T('pkKick'), 2); }
 }
 function refTouchKick(rs) {
   // 走る向き（動いていなければ見ている向き）に、速さに応じて蹴る
@@ -934,9 +958,9 @@ function refTouchKick(rs) {
   ref.touchCd = 0.35; ref.kickAnim = 0.3;
   if (G.phase === 'restart' || G.phase === 'dead') {
     const R = G.restart;
-    if (R && R.type === 'pk') { R.team.anger += 15; G.crowdAnger += 10; startProtest(R.taker, 2); msg('主審がPKのボールを蹴った！ 試合はそのまま続く', 2.4); }
-    else if (R && R.type === 'kickoff') { msg('主審のキックオフ！', 2); G.koDone = true; if (G.clock < 1) G.clock = 0; }
-    else msg('主審のキックで試合再開！', 2);
+    if (R && R.type === 'pk') { R.team.anger += 15; G.crowdAnger += 10; startProtest(R.taker, 2); msg(T('pkKick'), 2.4); }
+    else if (R && R.type === 'kickoff') { msg(T('refKO'), 2); G.koDone = true; if (G.clock < 1) G.clock = 0; }
+    else msg(T('refRe'), 2);
     if (R && R.team) { R.team.anger += 6; }
     G.restart = null; G.pk = null; hint('');
     for (const p of allActive()) p.freeze = 0;
@@ -946,11 +970,11 @@ function refTouchKick(rs) {
 }
 function refHold() {
   if (ball.held) { refThrow(); return; }
-  if (!refNearBall(1.4)) { msg('ボールが遠い', 1); return; }
+  if (!refNearBall(1.4)) { msg(T('far'), 1); return; }
   const was = ball.owner; ball.owner = null; ball.held = true; ball.last = 'ref';
   if (was) { was.team.anger += 8; startProtest(was, 2); }
   if (G.phase === 'live') { G.crowdAnger += 6; }
-  msg('ボールを持った（もう一度で投げる）', 1.6);
+  msg(T('hold'), 1.6);
 }
 function refThrow() {
   ball.held = false;
@@ -1009,8 +1033,8 @@ let curTarget = null;
   addEventListener('mousemove', e => { if (!md || IS_TOUCH) return; ref.yaw -= (e.clientX - lx) * 0.004; ref.pitch = clamp(ref.pitch - (e.clientY - ly) * 0.003, -1.1, 0.9); lx = e.clientX; ly = e.clientY; });
   const tap = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); fn(); });
   tap('bW', onWhistle);
-  tap('bY', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'Y') : msg('真ん中の輪に選手を入れてください', 1.6); } });
-  tap('bR', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'R') : msg('真ん中の輪に選手を入れてください', 1.6); } });
+  tap('bY', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'Y') : msg(T('aimTip'), 1.6); } });
+  tap('bR', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'R') : msg(T('aimTip'), 1.6); } });
   tap('bV', () => { G.view = G.view === 1 ? 3 : 1; });
   tap('bM', () => { if (G.phase === 'over') return; G.paused = true; $('pause').hidden = false; });
   tap('bA', () => openAdd());
@@ -1034,7 +1058,7 @@ function openAdd() {
 $('aM').onclick = () => { addN = Math.max(0, addN - 1); $('aN').textContent = '+' + addN; };
 $('aP').onclick = () => { addN = Math.min(99, addN + 1); $('aN').textContent = '+' + addN; };
 let boardT = 0;
-$('aOk').onclick = () => { $('addp').hidden = true; G.added = addN; G.addShown = true; boardT = 10; msg(`アディショナルタイムは <b style="color:#7dff9a">${addN}分</b>`, 3); if (addN >= 8) { G.crowdAnger += 8; } };
+$('aOk').onclick = () => { $('addp').hidden = true; G.added = addN; G.addShown = true; boardT = 10; msg(T('addMsg', `<b style="color:#7dff9a">${addN}</b>`), 3); if (addN >= 8) { G.crowdAnger += 8; } };
 $('aNo').onclick = () => { $('addp').hidden = true; };
 $('pRe').onclick = () => { $('pause').hidden = true; G.paused = false; };
 $('pEnd').onclick = () => { $('pause').hidden = true; save(); location.reload(); };
@@ -1045,7 +1069,7 @@ fetch('https://ft-red-default-rtdb.asia-southeast1.firebasedatabase.app/xquote/g
 function quoteURL() { const u = QUOTE.ja || ''; return /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}\/status\/\d{5,25}$/.test(u) ? u : ''; }
 $('rX').onclick = () => {
   const [A, B] = G.teams; const n = G.sentOff.length;
-  const t = `【八百長蹴球】主審をしました\n${A.n} ${A.score}-${B.score} ${B.n}\n${n ? `退場 ${n}人` : '退場者なし'}\n#八百長蹴球 #ブラウザゲーム\nhttps://nasubi-no-oniwa.com/yaocho/`;
+  const t = T('share', A.n, A.score, B.score, B.n, n ? T('offN', n) : T('noOff'), 'https://nasubi-no-oniwa.com/yaocho/');
   try { gtag('event', 'x_share', { game: 'yaocho' }); } catch (e) { }
   const q = quoteURL();
   const u = 'https://x.com/intent/post?text=' + encodeURIComponent(t) + (q ? '&url=' + encodeURIComponent(q) : ''); const w = window.open(u, '_blank'); if (!w) location.href = u;
@@ -1070,6 +1094,7 @@ function newMatch(saved) {
   const strs = saved ? saved.str : [strong === 0 ? rnd(0.85, 1) : rnd(0.42, 0.62), strong === 1 ? rnd(0.85, 1) : rnd(0.42, 0.62)];
   G.teams = [makeTeam(TEAMS[ia], 0, strs[0]), makeTeam(TEAMS[ib], 1, strs[1])];
   G.ti = [ia, ib];
+  teamNames();
   const used = new Set();
   for (const t of G.teams) {
     for (let s = 0; s < FORM.length; s++) {
@@ -1164,7 +1189,7 @@ function updatePlayers(dt) {
         tmpV.subVectors(ref.pos, p.pos).setY(0).normalize(); ref.vel.addScaledVector(tmpV, 7); ref.hurtT = 0.8;
         $('hurt').style.opacity = 1; setTimeout(() => $('hurt').style.opacity = 0, 400);
         G.offenses.push({ p, sev: 'red', real: performance.now() });
-        msg(`<span style="color:#ff6b6b">${pName(p)} に突き飛ばされた！</span>`, 2.6); p.team.anger -= 25;
+        msg(`<span style="color:#ff6b6b">${T('pushed', pName(p))}</span>`, 2.6); p.team.anger -= 25;
       }
     } else if (p.freeze > 0) { hasTgt = false; p.vel.multiplyScalar(Math.pow(0.001, dt)); }
     else if (G.phase === 'restart' && G.restart) {
@@ -1429,8 +1454,8 @@ function step(dt) {
     const s = G.pendingSave; G.pendingSave = null;
     if (!ball.owner && !ball.held && ball.pos.distanceTo(s.p.pos) < 3.2) {
       G.st.save++;
-    if (s.catch) { ball.owner = s.p; s.p.gkHold = true; s.p.holdT = 1.6; ball.last = s.p; msg('キャッチ！', 1.2); }
-      else { ball.vel.z *= -0.35; ball.vel.x = rnd(-6, 6); ball.vel.y = rnd(1, 4); ball.last = s.p; sKick(ball.pos, 1); msg('セーブ！', 1.2); }
+    if (s.catch) { ball.owner = s.p; s.p.gkHold = true; s.p.holdT = 1.6; ball.last = s.p; msg(T('catchB'), 1.2); }
+      else { ball.vel.z *= -0.35; ball.vel.x = rnd(-6, 6); ball.vel.y = rnd(1, 4); ball.last = s.p; sKick(ball.pos, 1); msg(T('save'), 1.2); }
       if (G.phase === 'pkshot') setPhase('live');
       G.excite = 1; CR('save');
     }
@@ -1454,11 +1479,11 @@ function step(dt) {
     const settled = R.t > 1.6 && R.taker.pos.distanceTo(restartPos(R.taker, R, tmpV)) < 1.0;
     if (R.type === 'pk') {
       if (G.pk && G.pk.state === 'setup' && settled) { G.pk.state = 'ready'; G.pk.t = 0; }
-      if (G.pk && G.pk.state === 'ready') { G.pk.t += dt; hint(G.pk.t > 6 ? 'みんなが笛を待っています（笛でPK）' : '笛でPK'); if (G.pk.t > 8 && Math.random() < dt) { for (const p of nearest(active(R.team), ref.pos, 1)) startProtest(p, 2); } }
+      if (G.pk && G.pk.state === 'ready') { G.pk.t += dt; hint(G.pk.t > 6 ? T('hPKwait') : T('hPK')); if (G.pk.t > 8 && Math.random() < dt) { for (const p of nearest(active(R.team), ref.pos, 1)) startProtest(p, 2); } }
       if (ball.held || ball.pos.distanceTo(R.spot) > 0.6) { if (G.pk && G.pk.state !== 'setup') { G.pk.state = 'setup'; } if (!ball.held && ball.vel.lengthSq() < 0.5 && R.t > 3) { } }
     } else if (R.needW) {
       if (settled && !R.ready) R.ready = true;
-      if (R.ready) hint(R.type === 'kickoff' ? '笛でキックオフ' : R.type === 'drop' ? '笛で再開' : '笛でフリーキック');
+      if (R.ready) hint(R.type === 'kickoff' ? T('hKO') : R.type === 'drop' ? T('hDrop') : T('hFK'));
     } else {
       if (settled) { R.ready = true; if (R.t > 2.6) executeRestart(); }
     }
@@ -1470,8 +1495,8 @@ function step(dt) {
   if (G.phase === 'goal' && G.goalPending) { G.goalPending.t += dt; if (G.goalPending.t > 6) confirmGoal(); }
   // 時間
   if (G.clock > HALF_LEN - 60 && G.added == null) $('bA').hidden = false;
-  if (G.clock > HALF_LEN + (G.added || 0) * 60 && G.phase === 'live') hint(G.half === 1 ? '時間です。笛 →「前半終了」で終われます' : '時間です。笛 →「試合終了」で終われます');
-  else if (G.phase === 'live' || G.phase === 'dead') { if (hintText.startsWith('時間')) hint(''); }
+  if (G.clock > HALF_LEN + (G.added || 0) * 60 && G.phase === 'live') hint(G.half === 1 ? T('hTime1') : T('hTime2'));
+  else if (G.phase === 'live' || G.phase === 'dead') { if (hintText === T('hTime1') || hintText === T('hTime2')) hint(''); }
   // 第4審判のボード
   if (boardT > 0) { boardT -= dt; board.m.visible = true; board.draw(G.added); board.m.position.set(board.body.pos.x + 0.3, 2.2, board.body.pos.z); board.m.rotation.y = Math.PI / 2; board.ref.shL.rotation.x = board.ref.shR.rotation.x = -2.9; }
   else { board.m.visible = false; if (board.ref) board.ref.shL.rotation.x = board.ref.shR.rotation.x = 0; }
@@ -1510,7 +1535,7 @@ function spawnInvader() {
   G.invDone = true;
   const b = buildBody({ shirt: '#e8e8e8', shorts: '#3a5a8a', socks: '#e8e8e8' }, null);
   G.invader = { b, pos: V3(HW + 5, 0, rnd(-10, 10)), t: 0, face: -Math.PI / 2, ph: 0 };
-  msg('観客が乱入！', 2.5); G.excite = 1;
+  msg(T('invader'), 2.5); G.excite = 1;
 }
 function updateInvader(dt) {
   const I = G.invader; I.t += dt;
@@ -1559,12 +1584,13 @@ fetch('yaocho.glb').then(r => r.arrayBuffer()).then(buf => new Promise((ok, ng) 
   placeForKickoff();
   for (const p of G.players) animate(p, 0.016, 0);
   for (const mg of G.mgrs) animate(mg, 0.016, 0);
+  applyLang();
   $('load').hidden = true;
   $('title').hidden = false;
   if (saved) $('cont').hidden = false;
   drawHUD();
   requestAnimationFrame(tick);
-}).catch(e => { $('load').textContent = '読みこみに失敗しました：' + e.message; });
+}).catch(e => { $('load').textContent = T('loadErr') + e.message; });
 
 function clearMatch() {
   for (const p of [...G.players, ...G.mgrs]) scene.remove(p.body.root);
@@ -1579,7 +1605,7 @@ function begin(saved) {
   placeForKickoff();
   G.kickoffTeam = saved ? saved.ko : (Math.random() < .5 ? 0 : 1);
   setRestart('kickoff', G.teams[G.half === 1 ? G.kickoffTeam : 1 - G.kickoffTeam]);
-  msg(`${G.teams[0].n} <span style="opacity:.6">vs</span> ${G.teams[1].n}`, 3);
+  msg(`${G.teams[0].n} <span style="opacity:.6">${T('vs')}</span> ${G.teams[1].n}`, 3);
   try { gtag('event', 'game_start', { game: 'yaocho' }); } catch (e) { }
 }
 $('go').onclick = () => begin(null);
