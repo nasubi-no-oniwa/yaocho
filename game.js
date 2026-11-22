@@ -1,6 +1,6 @@
 import { THREE, GLTFLoader } from './lib.js';
-import { makeCrowd } from './crowd.js?v=20261122k';
-import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122k';
+import { makeCrowd } from './crowd.js?v=20261122l';
+import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122l';
 
 // ================= 基本 =================
 const $ = id => document.getElementById(id);
@@ -1794,23 +1794,40 @@ function startRush() {
 }
 function clearRush() { if (!G.rush) return; for (const f of G.rush.fans) scene.remove(f.b.root); G.rush = null; }
 function updateRush(dt) {
-  const R = G.rush; R.t += dt;
+  const R = G.rush; R.t += dt; R.hitCd = (R.hitCd || 0) - dt;
+  const rsp = Math.hypot(ref.vel.x, ref.vel.z), rSlide = ref.slideT > 0;
   for (let i = R.fans.length - 1; i >= 0; i--) {
     const f = R.fans[i];
     if (f.delay > 0 && !R.leaving) { f.delay -= dt; }
     f.cd -= dt; if (f.actT > 0) { f.actT -= dt; if (f.actT <= 0) f.act = null; }
+    // 主審の体当たりで押しのける・倒す
+    if (ref.downT <= 0 && !(f.downT > 0)) {
+      const dx = f.pos.x - ref.pos.x, dz = f.pos.z - ref.pos.z, dd = Math.hypot(dx, dz);
+      if (dd < (rSlide ? 1.6 : 1.05) && dd > 0.001) {
+        const nx = dx / dd, nz = dz / dd;
+        if (rSlide || rsp > 3.5) {
+          const pw = rSlide ? 8 : 3 + rsp * 0.45;
+          f.kv = V3(nx * pw + ref.vel.x * 0.3, 0, nz * pw + ref.vel.z * 0.3);
+          f.downT = rSlide ? 2.8 : 1.8; f.fb = Math.random() < 0.5; f.act = null; f.actT = 0; f.cd = Math.max(f.cd, f.downT + 1.2);
+          sKick(f.pos, 0.5); if (Math.random() < 0.4) CR('ooh');
+        } else { f.pos.x = ref.pos.x + nx * 1.05; f.pos.z = ref.pos.z + nz * 1.05; }
+      }
+    }
+    if (f.kv) { f.pos.addScaledVector(f.kv, dt); f.kv.multiplyScalar(Math.pow(0.04, dt)); if (f.kv.lengthSq() < 0.01) f.kv = null; }
+    if (f.downT > 0) { f.downT -= dt; const fk = { body: f.b, pos: f.pos, face: f.face, ph: f.ph, state: 'down', fallBack: f.fb, stT: f.downT, act: null, actT: 0, appeal: 0, injured: 0 }; animate(fk, dt, 0); continue; }
     let tgt;
     if (R.leaving) tgt = f.home;
     else if (f.delay > 0) tgt = f.pos;
     else if (f.chase) tgt = ref.pos;
     else { if (f.pos.distanceTo(f.tgt) < 1.5) f.tgt.set(rnd(-HW + 2, HW - 2), 0, rnd(-HL + 2, HL - 2)); tgt = f.tgt; }
     tmpV.subVectors(tgt, f.pos).setY(0); const d = tmpV.length();
-    const v = d > (f.chase && !R.leaving ? 0.8 : 0.3) ? f.sp * (R.leaving ? 1.1 : 1) : 0;
+    const v = d > (f.chase && !R.leaving ? 1.1 : 0.3) ? f.sp * (R.leaving ? 1.1 : 1) : 0;
     if (d > 0.01) tmpV.multiplyScalar(v / d);
     if (f.act !== 'drop') f.pos.addScaledVector(tmpV, dt);
     if (v > 0) f.face = Math.atan2(tmpV.x, tmpV.z);
     // 主審をつかまえる
-    if (!R.leaving && f.chase && f.delay <= 0 && d < 1.2 && f.cd <= 0 && ref.downT <= 0) {
+    if (!R.leaving && f.chase && f.delay <= 0 && d < 1.2 && f.cd <= 0 && ref.downT <= 0 && R.hitCd <= 0 && !rSlide) {
+      R.hitCd = 3.2;
       f.cd = 3.5; f.act = 'drop'; f.actT = 0.8;
       tmpV.subVectors(ref.pos, f.pos).setY(0).normalize();
       ref.vel.addScaledVector(tmpV, 6); ref.downT = 1.4;
