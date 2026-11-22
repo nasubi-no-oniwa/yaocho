@@ -975,7 +975,7 @@ function applyLang() {
   document.documentElement.lang = LANG.v === 'zh' ? 'zh-Hant' : LANG.v;
   const set = (sel, k) => { const e = document.querySelector(sel); if (e) e.innerHTML = T(k); };
   set('#title .lead', 'lead'); set('#go', 'go'); set('#cont', 'cont'); set('#title .how', 'how');
-  for (const k of ['bW', 'bY', 'bR', 'bV', 'bM', 'bA']) set('#' + k, k);
+  for (const k of ['bW', 'bS', 'bY', 'bR', 'bV', 'bM', 'bA']) set('#' + k, k);
   set('#addp h2', 'addT'); set('#addp p', 'addP'); set('#aOk', 'aOk'); set('#aNo', 'aNo');
   set('#half h2', 'halfT'); set('#half p', 'halfP'); set('#hGo', 'hGo');
   set('#pause h2', 'pauseT'); set('#pRe', 'pRe'); set('#pEnd', 'pEnd');
@@ -1108,10 +1108,12 @@ let curTarget = null;
 {
   const stick = $('stick'), knob = $('knob');
   let sid = null, sx = 0, sy = 0;
-  let fT = 0, fMax = 0, fX = 0, fZ = 0;
+  let fT = 0, fMax = 0, fX = 0, fZ = 0, fS = [], fLast = 0;
   const stStart = (id, x, y) => { fT = performance.now(); fMax = 0; sid = id; const r = stick.getBoundingClientRect(); sx = r.left + r.width / 2; sy = r.top + r.height / 2; stMove(x, y); };
-  const stMove = (x, y) => { let dx = x - sx, dy = y - sy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.mx = dx / m; input.mz = -dy / m; const mg = Math.hypot(input.mx, input.mz); if (mg > fMax) { fMax = mg; fX = input.mx; fZ = input.mz; } };
-  const stEnd = () => { const quick = performance.now() - fT < 230 && fMax > 0.85; sid = null; knob.style.transform = ''; input.mx = input.mz = 0; if (quick && !G.paused && !panelOpen) refSlide(fX, fZ); };
+  const stMove = (x, y) => { let dx = x - sx, dy = y - sy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.mx = dx / m; input.mz = -dy / m; const mg = Math.hypot(input.mx, input.mz); if (mg > fMax) { fMax = mg; fX = input.mx; fZ = input.mz; }
+    const now = performance.now(); fS.push([now, x, y]); while (fS.length && now - fS[0][0] > 90) fS.shift();
+    if (fS.length > 1 && mg > 0.8) { const a = fS[fS.length - 2], dd = Math.hypot(x - a[1], y - a[2]), sp = dd / Math.max(8, now - a[0]) * 1000; if (dd > 15 && sp > 650 && now - fLast > 900 && !G.paused && !panelOpen) { fLast = now; fS.length = 0; refSlide(input.mx, input.mz); } } };
+  const stEnd = () => { const quick = performance.now() - fT < 230 && fMax > 0.85 && performance.now() - fLast > 400; fS = []; sid = null; knob.style.transform = ''; input.mx = input.mz = 0; if (quick && !G.paused && !panelOpen) refSlide(fX, fZ); };
   if ('ontouchstart' in window) {
     stick.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; stStart(t.identifier, t.clientX, t.clientY); }, { passive: false });
     addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === sid) stMove(t.clientX, t.clientY); }, { passive: false });
@@ -1142,6 +1144,7 @@ let curTarget = null;
   addEventListener('mousemove', e => { if (!md || IS_TOUCH) return; ref.yaw -= (e.clientX - lx) * 0.004; ref.pitch = clamp(ref.pitch - (e.clientY - ly) * 0.003, -1.1, 0.9); lx = e.clientX; ly = e.clientY; });
   const tap = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); fn(); });
   tap('bW', onWhistle);
+  tap('bS', () => { if (G.paused || panelOpen) return; let mx = input.mx, mz = input.mz; if (input.keys.KeyW || input.keys.ArrowUp) mz = 1; if (input.keys.KeyS || input.keys.ArrowDown) mz = -1; if (input.keys.KeyA || input.keys.ArrowLeft) mx = -1; if (input.keys.KeyD || input.keys.ArrowRight) mx = 1; if (Math.hypot(mx, mz) < 0.2) { mx = 0; mz = 1; } refSlide(mx, mz); });
   tap('bY', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'Y') : msg(T('aimTip'), 1.6); } });
   tap('bR', () => { if (!G.paused && !panelOpen) { const t = curTarget || cardTarget(); t ? giveCard(t, 'R') : msg(T('aimTip'), 1.6); } });
   tap('bV', () => { G.view = G.view === 1 ? 3 : 1; });
