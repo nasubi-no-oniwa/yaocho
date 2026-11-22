@@ -17,7 +17,7 @@ const IS_TOUCH = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in win
 const REF_R = 0.8;
 const HL = 30, HW = 20, GWH = 3.0, GH = 2.2, BR = 0.11;
 const BOX_D = 9, BOX_W = 10, SPOT = 8;
-const HALF_LEN = 360; // 6分
+const HALF_LEN = 180; // 3分
 
 const SURN = ['佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '山本', '中村', '小林', '加藤', '吉田', '山田', '佐々木', '山口', '松本', '井上', '木村', '林', '清水', '山崎', '森', '池田', '橋本', '阿部', '石川', '前田', '藤田', '小川', '岡田', '後藤', '長谷川', '村上', '近藤', '石井', '坂本', '遠藤', '青木', '藤井', '西村', '福田', '太田', '三浦', '岡本', '松田', '中川', '中野', '原田', '小野', '竹内', '金子'];
 const TEAMS = [
@@ -676,7 +676,7 @@ function shoot(p) {
 // ---------- タックル・反則 ----------
 function scheduleRough() {
   const n1 = Math.random() < 0.5 ? 2 : 3, n2 = 5 - n1, arr = [];
-  for (let i = 0; i < (G.half === 1 ? n1 : n2); i++) arr.push(rnd(35, 330));
+  for (let i = 0; i < (G.half === 1 ? n1 : n2); i++) arr.push(rnd(20, HALF_LEN - 20));
   G.roughSched = arr.sort((a, b) => a - b);
 }
 function tackle(t, v) {
