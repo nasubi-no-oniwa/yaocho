@@ -1584,7 +1584,7 @@ function begin(saved) {
 }
 $('go').onclick = () => begin(null);
 if (REC) {
-  window.__api = { G, ref, ball, giveCard, onWhistle, setRestart, refTouchKick, offBallViolence, tackle, startProtest, msg, hint, closePanel, active, allActive, nearest, begin, flash, board: () => board,
+  window.__api = { endMatch, G, ref, ball, giveCard, onWhistle, setRestart, refTouchKick, offBallViolence, tackle, startProtest, msg, hint, closePanel, active, allActive, nearest, begin, flash, board: () => board,
     setBoard: n => { G.added = n; boardT = 10; },
     advance(n, dt = 1 / 30) { for (let i = 0; i < n; i++) { perf += dt * 1000; crowdU.uTime.value = perf / 1000; if (!G.paused && !panelOpen) step(dt); updateCam(dt); const ex = clamp(G.excite, 0, 1); crowdU.uJump.value = lerp(crowdU.uJump.value, 0.04 + ex * 0.35, 0.05); } renderer.render(scene, cam); },
     render() { renderer.render(scene, cam); } };
