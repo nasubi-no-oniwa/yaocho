@@ -1,6 +1,6 @@
 import { THREE, GLTFLoader } from './lib.js';
-import { makeCrowd } from './crowd.js?v=20261122l';
-import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261122l';
+import { makeCrowd } from './crowd.js?v=20261123a';
+import { t as T, LANG, LANGS, TEAM_L, SURN_L } from './text.js?v=20261123a';
 
 // ================= 基本 =================
 const $ = id => document.getElementById(id);
@@ -1152,8 +1152,8 @@ let curTarget = null;
   const stStart = (id, x, y) => { fT = performance.now(); fMax = 0; sid = id; const r = stick.getBoundingClientRect(); sx = r.left + r.width / 2; sy = r.top + r.height / 2; stMove(x, y); };
   const stMove = (x, y) => { let dx = x - sx, dy = y - sy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.mx = dx / m; input.mz = -dy / m; const mg = Math.hypot(input.mx, input.mz); if (mg > fMax) { fMax = mg; fX = input.mx; fZ = input.mz; }
     const now = performance.now(); fS.push([now, x, y]); while (fS.length && now - fS[0][0] > 90) fS.shift();
-    if (fS.length > 1 && mg > 0.8) { const a = fS[fS.length - 2], dd = Math.hypot(x - a[1], y - a[2]), sp = dd / Math.max(8, now - a[0]) * 1000; if (dd > 15 && sp > 650 && now - fLast > 900 && !G.paused && !panelOpen) { fLast = now; fS.length = 0; refSlide(input.mx, input.mz); } } };
-  const stEnd = () => { const quick = performance.now() - fT < 230 && fMax > 0.85 && performance.now() - fLast > 400; fS = []; sid = null; knob.style.transform = ''; input.mx = input.mz = 0; if (quick && !G.paused && !panelOpen) refSlide(fX, fZ); };
+  };
+  const stEnd = () => { const quick = performance.now() - fT < 230 && fMax > 0.85 && performance.now() - fLast > 400; fS = []; sid = null; knob.style.transform = ''; input.mx = input.mz = 0; };
   if ('ontouchstart' in window) {
     stick.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; stStart(t.identifier, t.clientX, t.clientY); }, { passive: false });
     addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === sid) stMove(t.clientX, t.clientY); }, { passive: false });

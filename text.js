@@ -2,7 +2,7 @@
 const D = {
   ja: {
     first: '前半', second: '後半', lead: 'あなたは主審。<br>笛ひとつで、試合が変わる。', go: 'キックオフへ', cont: '続きから',
-    how: '<b>笛</b>を吹くと、試合は必ず止まる。判定はすべてあなたが決める。<br><b>黄・赤</b>は、真ん中の輪に入れた相手に出せる。だれにでも、いつでも。<br>ボールに<b>走って当たれば蹴れる</b>。上を向くと浮く。あなたが入れても、ゴールはゴール。<br><b>スライディング</b>ボタンか、移動のスティックをすばやくはじくと、選手を倒せる。<br>前半3分・後半3分。アディショナルタイムは、あなたの気分。<br>PC：WASD 移動／ドラッグで視点／Shift スライディング／F 笛／Y 黄／R 赤／V 視点',
+    how: '<b>笛</b>を吹くと、試合は必ず止まる。判定はすべてあなたが決める。<br><b>黄・赤</b>は、真ん中の輪に入れた相手に出せる。だれにでも、いつでも。<br>ボールに<b>走って当たれば蹴れる</b>。上を向くと浮く。あなたが入れても、ゴールはゴール。<br><b>スライディング</b>ボタンで、選手を倒せる。<br>前半3分・後半3分。アディショナルタイムは、あなたの気分。<br>PC：WASD 移動／ドラッグで視点／Shift スライディング／F 笛／Y 黄／R 赤／V 視点',
     bW: '笛', bS: 'スライ<br>ディング', bY: '黄', bR: '赤', bV: '視点', bM: '停止', bA: '＋時間',
     addT: 'アディショナルタイム', addP: '第4審判がボードを掲げます。何分にしますか？', aOk: 'これで掲げる', aNo: 'あとで決める',
     halfT: 'ハーフタイム', halfP: '両チームはエンドを入れかえます。', hGo: '後半へ',
@@ -24,7 +24,7 @@ const D = {
   },
   en: {
     first: '1st', second: '2nd', lead: 'You are the referee.<br>One whistle changes the match.', go: 'To kick-off', cont: 'Continue',
-    how: 'Blow the <b>whistle</b> and play always stops. Every decision is yours.<br><b>Yellow / Red</b> go to whoever is in the center ring. Anyone, any time.<br><b>Run into the ball</b> to kick it. Look up to loft it. If you score, it still counts.<br>The <b>Slide</b> button, or a quick flick of the move stick, slide-tackles players down.<br>3 minutes each half. Stoppage time is up to your mood.<br>PC: WASD move / drag to look / Shift slide / F whistle / Y yellow / R red / V view',
+    how: 'Blow the <b>whistle</b> and play always stops. Every decision is yours.<br><b>Yellow / Red</b> go to whoever is in the center ring. Anyone, any time.<br><b>Run into the ball</b> to kick it. Look up to loft it. If you score, it still counts.<br>The <b>Slide</b> button slide-tackles players down.<br>3 minutes each half. Stoppage time is up to your mood.<br>PC: WASD move / drag to look / Shift slide / F whistle / Y yellow / R red / V view',
     bW: 'Whistle', bS: 'Slide', bY: 'Y', bR: 'R', bV: 'View', bM: 'Pause', bA: '+Time',
     addT: 'Stoppage time', addP: 'The fourth official raises the board. How many minutes?', aOk: 'Raise it', aNo: 'Decide later',
     halfT: 'Half-time', halfP: 'The teams switch ends.', hGo: 'Second half',
@@ -46,7 +46,7 @@ const D = {
   },
   zh: {
     first: '上半場', second: '下半場', lead: '你是主裁判。<br>一聲哨響，比賽就變了。', go: '前往開球', cont: '繼續上次',
-    how: '吹<b>哨</b>，比賽一定停下。所有判決都由你決定。<br><b>黃牌・紅牌</b>可以給中間圓圈裡的人。誰都可以，隨時都可以。<br><b>跑去撞到球</b>就能踢。抬頭看就會挑高。你踢進的也算進球。<br>按<b>飛鏟</b>鍵，或快速撥一下移動搖桿，就能把球員鏟倒。<br>上下半場各3分鐘。傷停補時看你心情。<br>電腦：WASD 移動／拖曳轉視角／Shift 飛鏟／F 吹哨／Y 黃牌／R 紅牌／V 視角',
+    how: '吹<b>哨</b>，比賽一定停下。所有判決都由你決定。<br><b>黃牌・紅牌</b>可以給中間圓圈裡的人。誰都可以，隨時都可以。<br><b>跑去撞到球</b>就能踢。抬頭看就會挑高。你踢進的也算進球。<br>按<b>飛鏟</b>鍵，就能把球員鏟倒。<br>上下半場各3分鐘。傷停補時看你心情。<br>電腦：WASD 移動／拖曳轉視角／Shift 飛鏟／F 吹哨／Y 黃牌／R 紅牌／V 視角',
     bW: '吹哨', bS: '飛鏟', bY: '黃', bR: '紅', bV: '視角', bM: '暫停', bA: '＋時間',
     addT: '傷停補時', addP: '第四裁判會舉牌。要補幾分鐘？', aOk: '就舉這個', aNo: '之後再決定',
     halfT: '中場休息', halfP: '兩隊交換場地。', hGo: '開始下半場',
@@ -68,7 +68,7 @@ const D = {
   },
   ko: {
     first: '전반', second: '후반', lead: '당신은 주심.<br>휘슬 하나로 경기가 바뀐다.', go: '킥오프로', cont: '이어서 하기',
-    how: '<b>휘슬</b>을 불면 경기는 반드시 멈춘다. 판정은 모두 당신이 정한다.<br><b>옐로・레드</b>는 가운데 원에 들어온 상대에게 줄 수 있다. 누구에게나, 언제든지.<br>공에 <b>달려가 부딪히면 찰 수 있다</b>. 위를 보면 뜬다. 당신이 넣어도 골은 골.<br><b>슬라이딩</b> 버튼이나 이동 스틱을 빠르게 튕기면 선수를 넘어뜨릴 수 있다.<br>전반 3분・후반 3분. 추가 시간은 당신 기분대로.<br>PC: WASD 이동／드래그로 시점／Shift 슬라이딩／F 휘슬／Y 옐로／R 레드／V 시점',
+    how: '<b>휘슬</b>을 불면 경기는 반드시 멈춘다. 판정은 모두 당신이 정한다.<br><b>옐로・레드</b>는 가운데 원에 들어온 상대에게 줄 수 있다. 누구에게나, 언제든지.<br>공에 <b>달려가 부딪히면 찰 수 있다</b>. 위를 보면 뜬다. 당신이 넣어도 골은 골.<br><b>슬라이딩</b> 버튼으로 선수를 넘어뜨릴 수 있다.<br>전반 3분・후반 3분. 추가 시간은 당신 기분대로.<br>PC: WASD 이동／드래그로 시점／Shift 슬라이딩／F 휘슬／Y 옐로／R 레드／V 시점',
     bW: '휘슬', bS: '슬라<br>이딩', bY: '옐로', bR: '레드', bV: '시점', bM: '정지', bA: '＋시간',
     addT: '추가 시간', addP: '대기심이 보드를 든다. 몇 분으로 할까?', aOk: '이걸로 든다', aNo: '나중에 정한다',
     halfT: '하프타임', halfP: '두 팀은 진영을 바꾼다.', hGo: '후반으로',
